@@ -1,0 +1,37 @@
+<?php
+// License: GNU GPL v3 or later.
+namespace local_tomb\local;
+defined('MOODLE_INTERNAL') || die();
+
+final class renderer {
+    public static function page(object $request, string $path, string $title, string $body, string $eyebrow = ''): string {
+        global $CFG;
+        $e = [paths::class, 'escape'];
+        $root = paths::relative($path, 'index.html');
+        $css = paths::relative($path, '_assets/archive.css');
+        $omissions = paths::relative($path, 'omissions.html');
+        $mathconfig = paths::relative($path, '_assets/math-config.js');
+        $math = paths::relative($path, '_assets/mathjax/tex-mml-chtml.js');
+        $mathscripts = is_file($CFG->dirroot . '/local/tomb/assets/mathjax/tex-mml-chtml.js') ?
+            '<script src="' . $mathconfig . '"></script><script defer src="' . $math . '"></script>' : '';
+        $name = fullname(\core_user::get_user($request->subjectid));
+        return '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" ' .
+            'content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">' .
+            '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; ' .
+            'script-src &#39;self&#39;; style-src &#39;self&#39; &#39;unsafe-inline&#39;; ' .
+            'img-src &#39;self&#39; data:; font-src &#39;self&#39;; media-src &#39;self&#39;; connect-src &#39;none&#39;">' .
+            '<title>' . $e($title) . ' · Tomb</title><link rel="stylesheet" href="' . $css . '">' .
+            $mathscripts . '</head><body><header class="topbar"><a class="brand" href="' . $root .
+            '"><span class="brand-mark">T</span>tomb<span class="brand-caption">LEARNING ARCHIVE</span></a>' .
+            '<span class="offline-badge">● オフラインで閲覧できます</span></header><main class="layout">' .
+            '<aside><p class="side-label">MY LEARNING</p><p class="owner">' . $e($name) . '</p>' .
+            '<nav><a href="' . $root . '">学習記録のホーム</a><a href="' . $omissions .
+            '">保存内容について</a></nav><div class="side-note">学んだことを、<br>これからの自分へ。</div></aside>' .
+            '<article><div class="eyebrow">' . $e($eyebrow ?: 'YOUR LEARNING, PRESERVED') . '</div><h1>' .
+            $e($title) . '</h1>' . $body . '</article></main><footer><span>Tomb · 学習記録</span><div>出典：' .
+            $e($CFG->wwwroot) . '<br>収集期間：' . $e(userdate($request->timestarted)) . ' 〜 ' .
+            $e(userdate($request->timecollected)) . '<br>生成：' . $e(userdate($request->timefinished)) .
+            ' ／ ポリシー：' . $e($request->policy) . ' ／ <a href="' . $omissions .
+            '">保存内容・欠損一覧</a></div></footer></body></html>';
+    }
+}

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/tomb/db" VERSION="20260920" COMMENT="Tomb learning record archives">
+  <TABLES>
+    <TABLE NAME="local_tomb_request" COMMENT="Tomb request">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+        <FIELD NAME="subjectid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="requesterid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="kind" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="12" DEFAULT="learner" />
+        <FIELD NAME="policy" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="pseudonymised" />
+        <FIELD NAME="reason" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="courses" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="status" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="16" DEFAULT="queued" />
+        <FIELD NAME="stage" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="32" DEFAULT="queued" />
+        <FIELD NAME="message" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="timecreated" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="timestarted" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="timecollected" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="timefinished" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="heartbeat" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="revisionof" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="isrehearsal" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="timepurged" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="totalbytes" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
+        <FIELD NAME="plan" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="expected" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="actual" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="lasterror" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="wantdownload" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="notified" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="downloadcount" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="received" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="lastdownload" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="subject" UNIQUE="false" FIELDS="subjectid" />
+        <INDEX NAME="status" UNIQUE="false" FIELDS="status" />
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_tomb_entry" COMMENT="Tomb entry">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+        <FIELD NAME="requestid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="zippath" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="220" />
+        <FIELD NAME="fileid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="contenthash" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="40" />
+        <FIELD NAME="sourcetype" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="8" DEFAULT="inline" />
+        <FIELD NAME="method" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="crc" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
+        <FIELD NAME="size" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
+        <FIELD NAME="compressed" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
+        <FIELD NAME="zipoffset" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
+        <FIELD NAME="courseid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="cmid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="requestpath" UNIQUE="true" FIELDS="requestid, zippath" />
+        <INDEX NAME="coursecm" UNIQUE="false" FIELDS="courseid, cmid" />
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_tomb_omission" COMMENT="Tomb omission">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+        <FIELD NAME="requestid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="courseid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="cmid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="reason" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="32" />
+        <FIELD NAME="detail" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="itemcount" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="1" />
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="request" UNIQUE="false" FIELDS="requestid" />
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_tomb_blob" COMMENT="Tomb blob">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+        <FIELD NAME="contenthash" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="40" />
+        <FIELD NAME="crc" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
+        <FIELD NAME="size" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="hash" UNIQUE="true" FIELDS="contenthash" />
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_tomb_cache" COMMENT="Tomb cache">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+        <FIELD NAME="requestid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="status" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="16" DEFAULT="queued" />
+        <FIELD NAME="path" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="255" />
+        <FIELD NAME="sha256" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="64" />
+        <FIELD NAME="bytes" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
+        <FIELD NAME="expires" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="updated" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="lasterror" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="request" UNIQUE="true" FIELDS="requestid" />
+        <INDEX NAME="status" UNIQUE="false" FIELDS="status" />
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_tomb_audit" COMMENT="Tomb audit">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+        <FIELD NAME="requestid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="actorid" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="event" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="32" />
+        <FIELD NAME="details" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="timecreated" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="prevhash" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="64" />
+        <FIELD NAME="eventhash" TYPE="char" NOTNULL="true" SEQUENCE="false" LENGTH="64" />
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="request" UNIQUE="false" FIELDS="requestid" />
+        <INDEX NAME="actor" UNIQUE="false" FIELDS="actorid" />
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>

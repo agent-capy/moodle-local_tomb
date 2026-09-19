@@ -1,0 +1,9 @@
+/vendor/
+/node_modules/
+/.venv/
+/.cache/
+/build/
+/test-output/
+*.log
+.env
+
