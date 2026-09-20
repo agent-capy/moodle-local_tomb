@@ -1,6 +1,6 @@
 # Tomb — Moodle 学習記録アーカイブ
 
-Moodle の教材と学習成果を、ZIP を展開して読む静的 HTML にまとめる `local_tomb` プラグインです。**0.3.0-alpha / PoC**。Moodle 5.0・PHP 8.4 の共有検証環境で動作確認しています。
+Moodle の教材と学習成果を、ZIP を展開して読む静的 HTML にまとめる `local_tomb` プラグインです。**0.3.0-alpha / PoC**。Moodle 5.0・PHP 8.4 の検証環境で動作確認しています。
 
 生成物は `index.html` から閲覧できます。サーバー起動や Moodle へのログインは不要です。画面の JavaScript を無効にしても本文とリンクは使えます。数式表示には同梱の MathJax を使います。
 
@@ -21,7 +21,7 @@ Moodle の教材と学習成果を、ZIP を展開して読む静的 HTML にま
 
 ## 導入
 
-1. このリポジトリの内容を Moodle の **`local/tomb/`** に置きます。Git 管理のルートはこのリポジトリです。
+1. このリポジトリの内容を Moodle の **`local/tomb/`** に置きます。
 2. 既存プラグインに保留中の更新がないことを確認し、Moodle の CLI 実行ユーザーで以下を実行します。
 
    ```sh
@@ -36,7 +36,7 @@ Moodle の教材と学習成果を、ZIP を展開して読む静的 HTML にま
 
 新規導入時は無効です。本番・配信のみモードには未来の配送期限と設定確認が必要です。検証データと本番データは取得と集計で分離します。Moodle標準のPrivacy APIによる個人データ出力・承認済み削除に対応しています。0.1の保存材料が残る環境には移行ゲートがあり、不完全な個人データ応答を返しません。[個人データと旧版の移行](docs/PRIVACY.md)を参照してください。
 
-詳しい設定、保持、障害時の対応は [運用手順](docs/OPERATIONS.md)、試験の証拠と未検証事項は [検証結果](docs/VALIDATION.md)を参照してください。
+詳しい設定、保持、障害時の対応は [運用手順](docs/OPERATIONS.md)、対応機能と未検証事項は [対応範囲](docs/FEATURES.md)を参照してください。
 
 ## 保存と配信の仕組み
 
@@ -63,14 +63,12 @@ php tests/run.php --large-file
 php local/tomb/cli/estimate.php --userid=USER_ID --courses=COURSE_ID
 ```
 
-専用データを作る `cli/fixture.php` と、明示実行の `tests/integration.php`、`tests/named_export.php` を同梱しています。0.2では `tests/continuation.php`、`tests/privacy.php`、`tests/mode_race.php`、`tests/preparation_failure.php` で権限・個人データ・競合・障害復旧を追加確認しています。0.3では `tests/iteration.php` と `tests/language_capacity.php` に履歴・状態・言語固定・容量計測・監査分割処理の試験を追加しました。提出用の自然な教材は `cli/demo.php --create` で別コースに追加します。共有 DB の初期化を伴う PHPUnit/Behat は使用しません。検証コース以外を変更しない条件は [運用手順](docs/OPERATIONS.md)に記載しています。
+`cli/fixture.php` で専用の検証データ、`cli/demo.php --create` で別のデモコースを作成できます。`tests/` には、教材・権限・個人データ・競合・障害復旧・履歴・言語・容量の試験を同梱しています。Moodle上の試験は専用データと検証モードで明示実行し、共有DBの初期化は行いません。実行条件とコマンドは [運用手順](docs/OPERATIONS.md)を参照してください。
 
-実画面は [スクリーンショット一覧](docs/SCREENSHOTS.md)、WBS に対する到達点は [実装記録](docs/PROGRESS.md)で確認できます。
+実画面は [スクリーンショット一覧](docs/SCREENSHOTS.md)、対応する機能と制限は [対応範囲](docs/FEATURES.md)で確認できます。
 
 ## アルファ版の境界
 
 Windows・Safari の実機検証、実規模の負荷試験、Moodle 5.0 以外の検証は未実施です。全活動への対応、停止済みアカウントへの機関交付、詳細なルーブリック、日英以外の画面翻訳は今後の対象です。未対応活動や埋め込みは保存内容の注記に残します。添付資料は元の形式で保存します。
 
 GPL v3 or later。[LICENSE](LICENSE)と [同梱ソフトウェア](docs/THIRD_PARTY.md)を参照してください。
-
-0.1からの追加実装と判断は [継続実装記録](docs/CONTINUATION.md)にまとめています。Git履歴の作者は指定された `agent-capy`、Co-authorにはCodexと実際に使用したモデル名を記録します。

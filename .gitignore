@@ -7,3 +7,5 @@
 *.log
 .env
 
+# Local development instructions.
+/AGENTS.md
