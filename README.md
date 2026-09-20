@@ -6,7 +6,7 @@ Moodle の教材と学習成果を、ZIP を展開して読む静的 HTML にま
 
 ![オフラインの学習記録](docs/screenshots/0.3/01-offline-home-ja.png)
 
-[利用者の出力要求](docs/screenshots/0.3/08-learner-request.png)、[管理者の運用設定](docs/screenshots/0.3/09-administrator-controls.png)、[一括受付](docs/screenshots/0.3/10-administrator-batch-request.png)を含む [画面例と操作の流れ](docs/SCREENSHOTS.md)も掲載しています。
+[利用者の出力要求](docs/screenshots/0.3/08-learner-request.png)、[管理者の運用設定](docs/screenshots/0.3/09-administrator-controls.png)、[一括受付](docs/screenshots/0.3/10-administrator-batch-request.png)を含む [画面例と操作の流れ](docs/SCREENSHOTS.md)も掲載しています。要求・非同期処理・通知・取得の関係は [シーケンス図](docs/SEQUENCE.md)で確認できます。
 
 ## できること
 
