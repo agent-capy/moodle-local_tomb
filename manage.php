@@ -39,20 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             fclose($out);
             exit;
         } else if ($action === 'mode') {
-            $mode = required_param('mode', PARAM_ALPHAEXT);
-            if (!in_array($mode, ['disabled', 'rehearsal', 'active', 'delivery_only'], true)) {
-                throw new invalid_parameter_exception('Invalid mode');
-            }
-            if ($mode === 'rehearsal' && !$DB->record_exists('cohort',
-                    ['id' => (int)config::get('rehearsalcohortid', 0)])) {
-                throw new moodle_exception('unavailable', 'local_tomb');
-            }
-            if (in_array($mode, ['active', 'delivery_only']) &&
-                    (!(bool)config::get('setupconfirmed', 0) || (int)config::get('deliverydeadline', 0) <= time())) {
-                throw new moodle_exception('unavailable', 'local_tomb');
-            }
-            audit::add('mode_changed', 0, ['from' => config::mode(), 'to' => $mode]);
-            set_config('operationmode', $mode, 'local_tomb');
+            config::set_mode(required_param('mode', PARAM_ALPHAEXT));
         } else if ($action === 'purge') {
             if (!required_param('confirm', PARAM_BOOL)) {
                 throw new invalid_parameter_exception('Confirmation required');
@@ -75,6 +62,11 @@ echo '<div class="tomb-wrap"><div class="tomb-hero"><span class="tomb-eyebrow">T
     '<h1>学習記録を、確実に届ける。</h1><p>生成の進捗、配信の状態、本人の受取確認をまとめて確認できます。</p></div>';
 if ($error) {
     echo $OUTPUT->notification(s($error), 'error');
+}
+$legacycount = $DB->count_records_select('local_tomb_request', 'privacyversion = 0 AND timepurged = 0');
+if ($legacycount) {
+    echo '<div class="tomb-warning">旧アルファ版の保存材料が ' . $legacycount .
+        ' 件あります。過去のZIPはそのまま保持しています。本番移行と完全な個人データ要求処理には、管理者による旧版の材料削除が必要です。</div>';
 }
 $counts = $DB->get_records_sql('SELECT status, COUNT(*) AS total FROM {local_tomb_request} WHERE isrehearsal = ? GROUP BY status', [$rehearsal]);
 echo '<div class="tomb-meta">';

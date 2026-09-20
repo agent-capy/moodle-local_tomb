@@ -28,6 +28,44 @@ final class audit {
             $record->event, $record->timecreated, $record->details]));
     }
 
+    /** Privacy erasure is an explicit new audit epoch, not an undetectable rewrite of an old checkpoint. */
+    public static function erase_person(int $userid, array $requestids): void {
+        global $DB;
+        $lock = config::lock('audit', 10);
+        if (!$lock) {
+            throw new \moodle_exception('locktimeout');
+        }
+        try {
+            $transaction = $DB->start_delegated_transaction();
+            $rows = $DB->get_records('local_tomb_audit', null, 'id ASC');
+            $last = $rows ? end($rows) : null;
+            $oldhead = $last ? $last->eventhash : str_repeat('0', 64);
+            $previous = str_repeat('0', 64);
+            $count = 0;
+            foreach ($rows as $row) {
+                if ((int)$row->actorid === $userid || in_array((int)$row->requestid, array_map('intval', $requestids), true)) {
+                    $row->actorid = 0;
+                    $row->requestid = 0;
+                    $row->event = 'privacy_redacted';
+                    $row->details = '{}';
+                    $count++;
+                }
+                $row->prevhash = $previous;
+                $row->eventhash = self::hash($row);
+                $DB->update_record('local_tomb_audit', $row);
+                $previous = $row->eventhash;
+            }
+            $checkpoint = (object)['requestid' => 0, 'actorid' => 0, 'event' => 'privacy_checkpoint',
+                'details' => json_encode(['previoushead' => $oldhead, 'redacted' => $count], JSON_THROW_ON_ERROR),
+                'timecreated' => time(), 'prevhash' => $previous];
+            $checkpoint->eventhash = self::hash($checkpoint);
+            $DB->insert_record('local_tomb_audit', $checkpoint);
+            $transaction->allow_commit();
+        } finally {
+            $lock->release();
+        }
+    }
+
     public static function verify(): bool {
         global $DB;
         $records = $DB->get_recordset('local_tomb_audit', null, 'id ASC');

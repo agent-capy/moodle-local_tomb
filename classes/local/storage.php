@@ -33,6 +33,8 @@ final class storage {
         }
         $hash = $source->get_contenthash();
         if (isset($this->files[$hash])) {
+            personal_data::record($this->request, (int)$source->get_userid(), 'file:' . $source->get_id(),
+                ['type' => 'uploaded_file', 'files' => [$this->files[$hash]]]);
             return $this->files[$hash];
         }
         // Alternate stores may hydrate a file while it is read. Reserve room for that work as well.
@@ -66,6 +68,8 @@ final class storage {
         }
         $this->entry($path, $fixed, 'shared', 0, (int)$blob->crc, (int)$blob->size,
             (int)$blob->size, $courseid, $cmid);
+        personal_data::record($this->request, (int)$source->get_userid(), 'file:' . $source->get_id(),
+            ['type' => 'uploaded_file', 'files' => [$path]]);
         return $this->files[$hash] = $path;
     }
 
@@ -112,8 +116,13 @@ final class storage {
             $fs->delete_area_files($context->id, 'local_tomb', $area, $request->id);
         }
         if ($metadata) {
+            $DB->delete_records('local_tomb_person', ['requestid' => $request->id]);
             $DB->delete_records('local_tomb_entry', ['requestid' => $request->id]);
             $DB->delete_records('local_tomb_omission', ['requestid' => $request->id]);
+        } else {
+            // Keep identity references for retained inventory, but purge copied learning content.
+            $DB->set_field('local_tomb_person', 'payload', '{"type":"retained_inventory_reference"}',
+                ['requestid' => $request->id]);
         }
     }
 }

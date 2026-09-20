@@ -119,8 +119,8 @@ final class delivery {
 
     public static function assemble(int $id): void {
         global $DB;
-        $request = $DB->get_record('local_tomb_request', ['id' => $id], '*', MUST_EXIST);
-        if (!config::allowed($request->subjectid) || $request->status !== 'ready' || $request->timepurged) {
+        $request = $DB->get_record('local_tomb_request', ['id' => $id]);
+        if (!$request || !config::allowed($request->subjectid) || $request->status !== 'ready' || $request->timepurged) {
             return;
         }
         $worker = config::lock('worker');
@@ -136,6 +136,11 @@ final class delivery {
         $part = null;
         $finished = null;
         try {
+            // Privacy erasure may have retired the version before the worker lock was acquired.
+            $request = $DB->get_record('local_tomb_request', ['id' => $id]);
+            if (!$request || $request->status !== 'ready' || $request->timepurged || !config::allowed($request->subjectid)) {
+                return;
+            }
             $cache = $DB->get_record('local_tomb_cache', ['requestid' => $id], '*', MUST_EXIST);
             if (self::valid($cache) || !in_array($cache->status, ['queued', 'waiting', 'running'], true)) {
                 return;
@@ -183,6 +188,7 @@ final class delivery {
             $cache->status = 'ready';
             $cache->lasterror = '';
             $DB->update_record('local_tomb_cache', $cache);
+            $DB->set_field('local_tomb_request', 'lasterror', '', ['id' => $id, 'status' => 'ready']);
             audit::add('zip_ready', $id, ['sha256' => $sha, 'bytes' => $request->totalbytes], 0);
             manager::notify($request, 'ready');
         } catch (\Throwable $e) {

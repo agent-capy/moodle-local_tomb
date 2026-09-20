@@ -2,10 +2,12 @@
 """Create an installable Moodle plugin ZIP; exclude archives, credentials and test outputs."""
 from pathlib import Path
 import hashlib
+import re
 import zipfile
 
 root = Path(__file__).resolve().parents[1]
-output = root / "build" / "tomb-0.1.0-alpha.zip"
+release = re.search(r"\$plugin->release = '([^']+)'", (root / "version.php").read_text()).group(1)
+output = root / "build" / f"tomb-{release}.zip"
 output.parent.mkdir(exist_ok=True)
 allowed = {"classes", "db", "lang", "assets", "cli", "docs", "tests"}
 files = sorted(p for p in root.rglob("*") if p.is_file() and

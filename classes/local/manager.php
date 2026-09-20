@@ -77,7 +77,15 @@ final class manager {
         if (!$lock) {
             throw new \moodle_exception('locktimeout');
         }
+        $privacylock = config::lock('personaldata', 5);
+        if (!$privacylock) {
+            $lock->release();
+            throw new \moodle_exception('locktimeout');
+        }
         try {
+            if (!config::allowed($subjectid, true)) {
+                throw new \moodle_exception('unavailable', 'local_tomb');
+            }
             $recent = $DB->get_records('local_tomb_request', ['subjectid' => $subjectid], 'id DESC', '*', 0, 1);
             $recent = $recent ? reset($recent) : null;
             $encoded = json_encode($courseids, JSON_THROW_ON_ERROR);
@@ -97,13 +105,14 @@ final class manager {
                 'status' => 'queued', 'stage' => 'queued', 'message' => '', 'timecreated' => time(),
                 'revisionof' => $revisionof, 'isrehearsal' => config::mode() === 'rehearsal' ? 1 : 0,
                 'plan' => '', 'expected' => '', 'actual' => '', 'lasterror' => '',
-                'wantdownload' => $download && $subjectid == $USER->id ? 1 : 0];
+                'privacyversion' => 1, 'wantdownload' => $download && $subjectid == $USER->id ? 1 : 0];
             $record->id = $DB->insert_record('local_tomb_request', $record);
             audit::add('requested', $record->id, ['subject' => $subjectid, 'courses' => $courseids,
                 'kind' => $kind, 'policy' => $policy, 'reason' => $reason]);
             self::queue((int)$record->id, 'generate');
             return (int)$record->id;
         } finally {
+            $privacylock->release();
             $lock->release();
         }
     }
@@ -124,6 +133,15 @@ final class manager {
         if (($request->isrehearsal && config::mode() !== 'rehearsal') ||
                 (!$request->isrehearsal && config::mode() === 'rehearsal')) {
             return false;
+        }
+        if ($request->kind === 'teacher') {
+            foreach (json_decode($request->courses, true) as $courseid) {
+                $context = \context_course::instance($courseid, IGNORE_MISSING);
+                if (!$context || !has_capability('local/tomb:exportteacher', $context, $request->subjectid) ||
+                        ($request->policy === 'full' && !has_capability('local/tomb:exportothersdata', $context, $request->subjectid))) {
+                    return false;
+                }
+            }
         }
         if (has_capability('local/tomb:manage', \context_system::instance())) {
             return true;
@@ -146,8 +164,8 @@ final class manager {
 
     public static function generate(int $id): void {
         global $DB, $USER;
-        $request = $DB->get_record('local_tomb_request', ['id' => $id], '*', MUST_EXIST);
-        if ($request->status !== 'queued' || !config::allowed($request->subjectid, true)) {
+        $request = $DB->get_record('local_tomb_request', ['id' => $id]);
+        if (!$request || $request->status !== 'queued' || !config::allowed($request->subjectid, true)) {
             return;
         }
         $worker = config::lock('worker', 0);
@@ -156,8 +174,8 @@ final class manager {
         }
         $olduser = $USER;
         try {
-            $request = $DB->get_record('local_tomb_request', ['id' => $id], '*', MUST_EXIST);
-            if ($request->status !== 'queued') {
+            $request = $DB->get_record('local_tomb_request', ['id' => $id]);
+            if (!$request || $request->status !== 'queued' || !config::allowed($request->subjectid, true)) {
                 return;
             }
             \core\session\manager::set_user(\core_user::get_user($request->subjectid, '*', MUST_EXIST));
@@ -191,11 +209,13 @@ final class manager {
                 self::notify($request, 'collected');
             }
         } catch (\Throwable $e) {
-            $DB->update_record('local_tomb_request', (object)['id' => $id, 'status' => 'failed', 'stage' => 'failed',
+            $completed = $DB->get_field('local_tomb_request', 'status', ['id' => $id]) === 'ready';
+            $DB->update_record('local_tomb_request', (object)['id' => $id, 'status' => $completed ? 'ready' : 'failed',
+                'stage' => $completed ? 'ready' : 'failed',
                 'heartbeat' => time(), 'lasterror' => get_class($e) . ': ' . substr($e->getMessage(), 0, 1000)]);
-            audit::add('generation_failed', $id, ['exception' => get_class($e)], 0);
+            audit::add($completed ? 'preparation_failed' : 'generation_failed', $id, ['exception' => get_class($e)], 0);
             self::notify($request, 'failed');
-            mtrace('Tomb request ' . $id . ' failed: ' . get_class($e));
+            mtrace('Tomb request ' . $id . ($completed ? ' ZIP preparation failed: ' : ' collection failed: ') . get_class($e));
         } finally {
             \core\session\manager::set_user($olduser);
             $worker->release();
@@ -204,54 +224,63 @@ final class manager {
 
     public static function notify(object $request, string $type): bool {
         global $DB;
-        try {
-            $user = \core_user::get_user($request->subjectid);
-            if (!$user || $user->deleted || $user->suspended) {
-                audit::add('notification_unreachable', $request->id, [], 0);
-                return false;
-            }
-            $notice = new \core\message\message();
-            $notice->component = 'local_tomb';
-            $notice->name = $type === 'collected' ? 'ready' : $type;
-            $notice->userfrom = \core_user::get_noreply_user();
-            $notice->userto = $user;
-            $notice->subject = get_string('notification_' . $type, 'local_tomb');
-            $notice->fullmessage = $notice->subject . "\n" . str_replace('\\n', "\n", get_string('notification_body', 'local_tomb', (object)[
-                'id' => $request->id, 'size' => display_size($request->totalbytes),
-                'omissions' => $DB->count_records('local_tomb_omission', ['requestid' => $request->id]),
-                'deadline' => config::mode() === 'rehearsal' ? get_string('rehearsal', 'local_tomb') :
-                    userdate((int)config::get('deliverydeadline', 0))]));
-            $notice->fullmessageformat = FORMAT_PLAIN;
-            $notice->fullmessagehtml = '';
-            $notice->smallmessage = $notice->subject;
-            $notice->notification = 1;
-            $notice->contexturl = (new \moodle_url('/local/tomb/index.php', ['id' => $request->id]))->out(false);
-            $notice->contexturlname = get_string('viewarchive', 'local_tomb');
-            $success = message_send($notice);
-            if ($type === 'failed') {
-                // Operational failure notices contain no student download URL or learning content.
-                foreach (get_admins() as $admin) {
-                    if ($admin->id == $request->subjectid) {
-                        continue;
-                    }
-                    $adminnotice = clone $notice;
-                    $adminnotice->userto = $admin;
-                    $adminnotice->fullmessage = 'Tomb archive #' . $request->id . ' needs administrator attention.';
-                    $adminnotice->contexturl = (new \moodle_url('/local/tomb/manage.php'))->out(false);
-                    $adminnotice->contexturlname = get_string('manage', 'local_tomb');
-                    message_send($adminnotice);
-                }
-            }
-            if ($success) {
-                if ($type === 'ready') {
-                    $DB->set_field('local_tomb_request', 'notified', time(), ['id' => $request->id]);
-                }
-                audit::add('notified', $request->id, ['type' => $type], 0);
-            }
-            return (bool)$success;
-        } catch (\Throwable $e) {
-            audit::add('notification_failed', $request->id, ['exception' => get_class($e)], 0);
-            return false;
+        if (!in_array($type, ['ready', 'collected', 'failed', 'reminder'], true)) {
+            throw new \invalid_parameter_exception('Invalid notification type');
         }
+        $notice = new \core\message\message();
+        $notice->component = 'local_tomb';
+        $notice->name = $type === 'collected' ? 'ready' : $type;
+        $notice->userfrom = \core_user::get_noreply_user();
+        $notice->subject = get_string('notification_' . $type, 'local_tomb');
+        $notice->fullmessage = $notice->subject . "\n" . str_replace('\\n', "\n", get_string('notification_body', 'local_tomb', (object)[
+            'id' => $request->id, 'size' => display_size($request->totalbytes),
+            'omissions' => $DB->count_records('local_tomb_omission', ['requestid' => $request->id]),
+            'deadline' => config::mode() === 'rehearsal' ? get_string('rehearsal', 'local_tomb') :
+                userdate((int)config::get('deliverydeadline', 0))]));
+        $notice->fullmessageformat = FORMAT_PLAIN;
+        $notice->fullmessagehtml = '';
+        $notice->smallmessage = $notice->subject;
+        $notice->notification = 1;
+        $notice->contexturl = (new \moodle_url('/local/tomb/index.php', ['id' => $request->id]))->out(false);
+        $notice->contexturlname = get_string('viewarchive', 'local_tomb');
+        $user = \core_user::get_user($request->subjectid);
+        $success = false;
+        if ($user && !$user->deleted && !$user->suspended) {
+            $notice->userto = $user;
+            try {
+                $success = (bool)message_send($notice);
+            } catch (\Throwable $e) {
+                audit::add('notification_failed', $request->id, ['exception' => get_class($e)], 0);
+            }
+        } else {
+            audit::add('notification_unreachable', $request->id, [], 0);
+        }
+        // An unreachable owner must never suppress the independent administrator failure notice.
+        if ($type === 'failed') {
+            foreach (get_admins() as $admin) {
+                if ($success && $admin->id == $request->subjectid) {
+                    continue;
+                }
+                $adminnotice = clone $notice;
+                $adminnotice->userto = $admin;
+                $adminnotice->fullmessage = 'Tomb archive #' . $request->id . ' needs administrator attention.';
+                $adminnotice->contexturl = (new \moodle_url('/local/tomb/manage.php'))->out(false);
+                $adminnotice->contexturlname = get_string('manage', 'local_tomb');
+                try {
+                    if (message_send($adminnotice)) {
+                        audit::add('administrator_notified', $request->id, [], 0);
+                    }
+                } catch (\Throwable $e) {
+                    audit::add('admin_notice_failed', $request->id, ['exception' => get_class($e)], 0);
+                }
+            }
+        }
+        if ($success) {
+            if ($type === 'ready') {
+                $DB->set_field('local_tomb_request', 'notified', time(), ['id' => $request->id]);
+            }
+            audit::add('notified', $request->id, ['type' => $type], 0);
+        }
+        return $success;
     }
 }

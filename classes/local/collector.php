@@ -315,6 +315,7 @@ final class collector {
     }
 
     private function author(int $userid): string {
+        personal_data::record($this->request, $userid, 'identity', ['type' => 'represented_person']);
         if ($userid === (int)$this->request->subjectid) {
             return 'あなた';
         }
@@ -350,11 +351,13 @@ final class collector {
                 $visible++;
                 $this->sourcechecks[] = ['forum_posts', ['id' => $post->id, 'deleted' => 0]];
                 $this->sourcechecks[] = ['forum_discussions', ['id' => $discussion->id]];
-                $thread .= '<section class="panel" id="post-' . $post->id . '"><span class="tag">' .
+                $fragment = '<section class="panel" id="post-' . $post->id . '"><span class="tag">' .
                     $this->e($this->author((int)$post->userid)) . '</span><span class="meta">' .
                     $this->e(userdate($post->created)) . '</span><h3>' . $this->e($post->subject) . '</h3>' .
                     $this->content($post->message, (int)$post->messageformat, $path, $context, 'mod_forum', 'post', (int)$post->id) .
                     $this->attachments($this->files($context->id, 'mod_forum', 'attachment', (int)$post->id), $path) . '</section>';
+                $thread .= $fragment;
+                personal_data::fragment($this->request, (int)$post->userid, 'forum:' . $post->id, $path, $fragment);
             }
             if ($thread !== '') {
                 $body .= '<h3>' . $this->e($discussion->name) . '</h3>' . $thread;
@@ -425,7 +428,7 @@ final class collector {
                             'exception' => get_class($e)], 0);
                         continue;
                     }
-                    $body .= '<section class="panel quiz-question">' . html::rewrite($fragment,
+                    $rendered = html::rewrite($fragment,
                         function(string $url) use ($object, $slot, $question, $context, $model, $CFG) {
                             $parts = parse_url($url);
                             if (!$parts || (!empty($parts['host']) && $parts['host'] !== parse_url($CFG->wwwroot, PHP_URL_HOST))) {
@@ -451,7 +454,11 @@ final class collector {
                             return $file ? $this->file_path($file, $model['path']) : null;
                         }, function(string $reason) {
                             $this->omit($reason, '小テスト内に静的保存できない埋め込みがあります');
-                        }) . '</section>';
+                        });
+                    $body .= '<section class="panel quiz-question">' . $rendered . '</section>';
+                    if ($options->manualcomment == \question_display_options::VISIBLE) {
+                        personal_data::question_comment($this->request, $object->get_question_attempt($slot), $model['path'], $rendered);
+                    }
                 }
                 if ($options->overallfeedback) {
                     $grade = quiz_rescale_grade($attempt->sumgrades, $model['instance'], false);
@@ -467,6 +474,8 @@ final class collector {
         } finally {
             $PAGE = $previouspage;
         }
+        personal_data::fragment($this->request, $foruser ?? (int)$this->request->subjectid,
+            'quiz:' . $model['cm']->id, $model['path'], $body);
         return $body . (!$attempts ? '<p>保存対象となる受験はありません。</p>' : '');
     }
 
@@ -537,7 +546,7 @@ final class collector {
                 $this->omit('policy_excluded', '課題の採点権限がないため学生の提出は保存しません');
                 return '';
             }
-            $body = '<p class="notice">担当者が閲覧できる在籍者の提出と、各学生に公開済みの評価を保存しています。</p>';
+            $body = '<p class="notice">担当者の採点権限で閲覧できる提出・評価・講評を保存しています。学生への公開前の内容を含む場合があります。</p>';
             foreach ($this->participants($course, $cm, 'mod/assign:submit') as $user) {
                 $body .= '<h2>' . $this->e($this->author((int)$user->id)) . '</h2>' .
                     $this->assignment($course, $model, $context, (int)$user->id);
@@ -575,21 +584,30 @@ final class collector {
         $public = $this->public_grade($course, 'assign', (int)$cm->instance, $userid);
         $released = !$model['instance']->markingworkflow ||
             $assignment->get_grading_status($userid) === ASSIGN_MARKING_WORKFLOW_STATE_RELEASED;
-        if ($public && $released) {
+        $teacherreview = $this->request->kind === 'teacher' && $foruser !== null &&
+            has_capability('mod/assign:grade', $context);
+        if (($public && $released) || $teacherreview) {
             $grade = $assignment->get_user_grade($userid, false);
+            $value = $teacherreview && $grade ?
+                html_entity_decode(strip_tags($assignment->display_grade($grade->grade, false, $userid)), ENT_QUOTES | ENT_HTML5, 'UTF-8') :
+                ($public ? grade_format_gradevalue($public->grade->finalgrade, $public->item) : '—');
             $body .= '<h2>評価とフィードバック</h2><div class="feedback"><div class="grade">' .
-                $this->e(grade_format_gradevalue($public->grade->finalgrade, $public->item)) . '</div>';
+                $this->e($value) . '</div>';
+            if ($teacherreview && (!$public || !$released)) {
+                $body .= '<p class="notice">学生には未公開の評価・講評です。</p>';
+            }
             if ($grade) {
                 $comment = $DB->get_record('assignfeedback_comments', ['grade' => $grade->id]);
-                if ($comment) {
-                    $body .= $this->content($comment->commenttext, (int)$comment->commentformat, $path, $context,
-                        'assignfeedback_comments', 'feedback', (int)$grade->id);
-                }
-                $body .= $this->attachments($this->files($context->id, 'assignfeedback_file', 'feedback_files',
+                $feedback = $comment ? $this->content($comment->commenttext, (int)$comment->commentformat, $path, $context,
+                    'assignfeedback_comments', 'feedback', (int)$grade->id) : '';
+                $feedback .= $this->attachments($this->files($context->id, 'assignfeedback_file', 'feedback_files',
                     (int)$grade->id), $path);
+                $body .= $feedback;
+                personal_data::fragment($this->request, (int)$grade->grader, 'assignment-feedback:' . $grade->id, $path, $feedback);
             }
             $body .= '</div>';
         }
+        personal_data::fragment($this->request, $userid, 'assignment:' . $cm->id, $path, $body);
         return $body;
     }
 
@@ -601,7 +619,7 @@ final class collector {
                 $this->omit('policy_excluded', '成績レポートを閲覧する権限がありません');
                 return '<p>保存対象となる成績はありません。</p>';
             }
-            $body = '<p class="notice">アルファ版では、閲覧可能な在籍者のうち、学生本人に公開済みの成績を保存します。</p>';
+            $body = '<p class="notice">担当者の成績閲覧権限に従って保存します。非公開成績の閲覧権限がある場合は、学生への公開前の評価も含みます。</p>';
             $users = get_enrolled_users($context, 'moodle/grade:view', 0, 'u.*', 'u.id', 0, 0, true);
             foreach ($users as $user) {
                 if (has_capability('moodle/grade:viewall', $context, $user->id)) {
@@ -618,7 +636,11 @@ final class collector {
             return $body;
         }
         $userid = $foruser ?? (int)$this->request->subjectid;
-        if (!$course->showgrades || !has_capability('moodle/grade:view', \context_course::instance($course->id), $userid)) {
+        $context = \context_course::instance($course->id);
+        $teacherreview = $this->request->kind === 'teacher' && $foruser !== null &&
+            has_capability('moodle/grade:viewall', $context);
+        $canseehidden = $teacherreview && has_capability('moodle/grade:viewhidden', $context);
+        if (!$teacherreview && (!$course->showgrades || !has_capability('moodle/grade:view', \context_course::instance($course->id), $userid))) {
             $this->omit('policy_excluded', 'Gradebook is not visible');
             return '<p>本人に公開されている成績はありません。</p>';
         }
@@ -626,15 +648,16 @@ final class collector {
         $hasprivate = false;
         foreach ($items as $item) {
             $grade = \grade_grade::fetch(['itemid' => $item->id, 'userid' => $userid]);
-            if ($item->is_hidden() || ($grade && $grade->is_hidden())) {
+            if (!$canseehidden && ($item->is_hidden() || ($grade && !$this->grade_visible($item, $grade, $userid)))) {
                 $hasprivate = true;
             }
         }
-        $body = '<p class="lead">収集時点で本人に公開されている評価を保存しています。</p>' .
+        $body = '<p class="lead">' . ($teacherreview ? '担当者の権限で閲覧できる評価を保存しています。' :
+            '収集時点で本人に公開されている評価を保存しています。') . '</p>' .
             '<table><thead><tr><th>項目</th><th>評価</th><th>フィードバック</th></tr></thead><tbody>';
         foreach ($items as $item) {
             $grade = \grade_grade::fetch(['itemid' => $item->id, 'userid' => $userid]);
-            if (!$grade || !$this->grade_visible($item, $grade, $userid)) {
+            if (!$grade || (!$canseehidden && !$this->grade_visible($item, $grade, $userid))) {
                 continue;
             }
             if ($hasprivate && in_array($item->itemtype, ['course', 'category'], true)) {
@@ -653,12 +676,19 @@ final class collector {
                     continue;
                 }
             }
-            $body .= '<tr><td>' . $this->e($item->get_name()) . '</td><td class="grade">' .
+            $feedback = $this->content($grade->feedback ?? '', (int)$grade->feedbackformat, $path,
+                $context, 'grade', 'feedback', (int)$grade->id);
+            personal_data::fragment($this->request, (int)$grade->usermodified,
+                'grade-feedback:' . $grade->id, $path, $feedback);
+            $hidden = !$this->grade_visible($item, $grade, $userid);
+            $body .= '<tr><td>' . $this->e($item->get_name()) . ($hidden ? ' <span class="tag">学生には非公開</span>' : '') .
+                '</td><td class="grade">' .
                 $this->e(grade_format_gradevalue($grade->finalgrade, $item)) . '</td><td>' .
-                $this->content($grade->feedback ?? '', (int)$grade->feedbackformat, $path,
-                    \context_course::instance($course->id), 'grade', 'feedback', (int)$grade->id) . '</td></tr>';
+                $feedback . '</td></tr>';
         }
-        return $body . '</tbody></table>';
+        $body .= '</tbody></table>';
+        personal_data::fragment($this->request, $userid, 'grades:' . $course->id, $path, $body);
+        return $body;
     }
 
     private function finish(): void {

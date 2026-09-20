@@ -1,5 +1,24 @@
 # 実画面・提出用素材
 
+## 0.2.0-alpha の追加画面
+
+同日09:01〜09:05 JSTに、通常の画面操作で生成した学生版36・教師版35を撮影。追加11枚。ブラウザ幅1440px、小画面390px。オフライン画像は実際にダウンロードしたZIPを展開して表示した。
+
+| 画像 | 説明 |
+|---|---|
+| [一括受付の結果](screenshots/0.2/01-batch-results.png) | 利用者別の成功・受付間隔による失敗を表示。成功した学生版34は本人が取得する |
+| [学生の受け取り](screenshots/0.2/02-learner-ready.png) / [教師の受け取り](screenshots/0.2/03-teacher-ready.png) | 通常cronで準備・検証された新しい記録 |
+| [学生のホーム](screenshots/0.2/04-learner-offline-home.png) / [教師のホーム](screenshots/0.2/04-teacher-offline-home.png) | オフラインの入口 |
+| [学生の成績](screenshots/0.2/05-learner-grades.png) / [教師の成績](screenshots/0.2/05-teacher-grades.png) | 学生には公開成績、権限のある教師には未公開評価も含める。非公開ラベルを表示 |
+| [学生の小テスト](screenshots/0.2/06-learner-quiz.png) / [教師の小テスト](screenshots/0.2/06-teacher-quiz.png) | 保存済み受験とローカルの数式表示 |
+| [学生の小画面](screenshots/0.2/07-learner-mobile-assignment.png) / [教師の小画面](screenshots/0.2/07-teacher-mobile-assignment.png) | 課題ページを390px幅で表示 |
+
+`TOMB_PRIVATE_*` は非公開評価が学生版へ混入していないことを検証する架空データの目印。実在者の秘密情報ではない。コンペでは学生ホーム・受け取りを主画像とし、教師の権限差を説明する場合に成績の対比を使える。
+
+成果物は `build/tomb-0.2.0-alpha.zip`（導入用）、`build/demo-learner-0.2.zip` / `build/demo-teacher-0.2.zip`（学習記録の実物）、`build/demo-learner-assignment-print-0.2.pdf` / `build/demo-teacher-assignment-print-0.2.pdf`（印刷例）。旧版の成果物も別名で保持する。生成物と認証情報はGit対象外。
+
+## 0.1.0-alpha の記録
+
 撮影日：2026-09-20 JST。0.1.0-alpha の実装を実際に操作して撮影した。架空の学生・教師を使用し、パスワード・セッション・鍵は含めていない。モック画面や画像生成による画面ではない。
 
 オフライン画面は専用コース10、学生50の**版11**を通常の取得経路で保存・展開したもの。デスクトップは幅1440px、小画面は幅390px。PNGは全ページ撮影のため、縦長の画像を含む。

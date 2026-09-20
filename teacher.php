@@ -28,7 +28,7 @@ if (!isset($courses[$courseid])) {
 $context = context_course::instance($courseid);
 $users = get_enrolled_users($context, 'moodle/grade:view', 0, 'u.*', 'u.lastname,u.firstname', 0, 0, true);
 foreach ($users as $userid => $user) {
-    if (has_capability('local/tomb:exportteacher', $context, $userid) || !config::allowed((int)$userid, true)) {
+    if (has_capability('local/tomb:exportteacher', $context, $userid) || !config::allowed((int)$userid)) {
         unset($users[$userid]);
     }
 }
@@ -41,6 +41,8 @@ if ($courses[$courseid]->groupmode == SEPARATEGROUPS && !has_capability('moodle/
     }
 }
 $notice = '';
+$batchresults = [];
+$cangenerate = in_array(config::mode(), ['rehearsal', 'active'], true);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_sesskey();
     $action = required_param('action', PARAM_ALPHA);
@@ -58,9 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $failed = 0;
         foreach ($ids as $userid) {
             try {
-                $accepted[] = manager::request([$courseid], $userid);
+                $requestid = manager::request([$courseid], $userid);
+                $accepted[] = $requestid;
+                $batchresults[] = [fullname($users[$userid]), '#' . $requestid, '受付済み'];
             } catch (moodle_exception $e) {
                 $failed++;
+                $batchresults[] = [fullname($users[$userid]), '—', $e->getMessage()];
             }
         }
         $notice = count($accepted) . ' 件を受け付けました。' . ($failed ? $failed . ' 件は受付できませんでした（直近の申請・利用資格をご確認ください）。' : '');
@@ -72,13 +77,23 @@ echo '<div class="tomb-wrap"><div class="tomb-hero"><div class="tomb-eyebrow">TO
 if ($notice) {
     echo $OUTPUT->notification(s($notice), 'info');
 }
+if ($batchresults) {
+    echo '<section class="tomb-box"><h2>今回の受付結果</h2><table class="tomb-table"><tr><th>対象者</th><th>受付</th><th>結果</th></tr>';
+    foreach ($batchresults as [$name, $number, $result]) {
+        echo '<tr><td>' . s($name) . '</td><td>' . s($number) . '</td><td>' . s($result) . '</td></tr>';
+    }
+    echo '</table></section>';
+}
+if (!$cangenerate) {
+    echo '<p class="tomb-warning">現在は新しい収集を受け付けていません。受付済みの申請の進捗は引き続き確認できます。</p>';
+}
 echo '<form method="get" class="mb-4"><label>コース <select name="courseid" class="custom-select">';
 foreach ($courses as $course) {
     echo '<option value="' . $course->id . '"' . ($course->id == $courseid ? ' selected' : '') . '>' . s($course->fullname) . '</option>';
 }
 echo '</select></label> <button type="submit" class="tomb-button tomb-secondary">選択</button></form><div class="tomb-grid">';
 echo '<section class="tomb-box"><h2>教師版を作成</h2><p class="tomb-muted">担当者に閲覧が許可された教材と在籍者の学習成果を保存します。' .
-    'アルファ版の課題フィードバックと成績表は、学生本人に公開済みの内容が対象です。</p>' .
+    '担当者の採点・成績閲覧権限に従い、学生への公開前の評価や講評を含む場合があります。</p>' .
     '<form method="post"><input type="hidden" name="sesskey" value="' . sesskey() . '"><input type="hidden" name="action" value="teacher">' .
     '<input type="hidden" name="courseid" value="' . $courseid . '"><label>投稿者・学生の表示 <select name="policy" class="custom-select">' .
     '<option value="pseudonymised">仮名で表示（標準）</option>';
@@ -87,10 +102,10 @@ if (has_capability('local/tomb:exportothersdata', $context)) {
 }
 echo '</select></label><label class="d-block">実名で保存する理由 <textarea name="reason" class="form-control" rows="2"></textarea></label>' .
     '<p class="tomb-muted">仮名化は投稿者・氏名欄が対象です。本文やファイル内の個人情報は書き換えません。</p>' .
-    '<button type="submit" class="tomb-button">教師版を作成して受け取る →</button></form></section>';
+    '<button type="submit" class="tomb-button"' . (!$cangenerate ? ' disabled' : '') . '>教師版を作成して受け取る →</button></form></section>';
 echo '<section class="tomb-box"><h2>学生版の作成を代行</h2><p class="tomb-muted">収集完了後は本人へ通知します。学生はログインしてZIPの準備を依頼できます。' .
     '代行した教師が学生版を取得することはできません。</p>';
-if (has_capability('local/tomb:delegate', $context)) {
+if ($cangenerate && has_capability('local/tomb:delegate', $context)) {
     echo '<form method="post"><input type="hidden" name="sesskey" value="' . sesskey() . '"><input type="hidden" name="action" value="delegate">' .
         '<input type="hidden" name="courseid" value="' . $courseid . '">';
     foreach ($users as $user) {

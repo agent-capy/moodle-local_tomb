@@ -20,6 +20,7 @@
         <FIELD NAME="heartbeat" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
         <FIELD NAME="revisionof" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
         <FIELD NAME="isrehearsal" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="privacyversion" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="2" DEFAULT="0" />
         <FIELD NAME="timepurged" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
         <FIELD NAME="totalbytes" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
         <FIELD NAME="plan" TYPE="text" NOTNULL="true" SEQUENCE="false" />
@@ -132,6 +133,20 @@
       <INDEXES>
         <INDEX NAME="request" UNIQUE="false" FIELDS="requestid" />
         <INDEX NAME="actor" UNIQUE="false" FIELDS="actorid" />
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_tomb_person" COMMENT="Per-person archive contributions for Privacy API">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+        <FIELD NAME="requestid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" />
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" />
+        <FIELD NAME="itemkey" TYPE="char" LENGTH="40" NOTNULL="true" />
+        <FIELD NAME="payload" TYPE="text" NOTNULL="true" />
+      </FIELDS>
+      <KEYS><KEY NAME="primary" TYPE="primary" FIELDS="id" /></KEYS>
+      <INDEXES>
+        <INDEX NAME="requestuserkey" UNIQUE="true" FIELDS="requestid, userid, itemkey" />
+        <INDEX NAME="userid" UNIQUE="false" FIELDS="userid" />
       </INDEXES>
     </TABLE>
   </TABLES>

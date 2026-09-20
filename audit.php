@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 echo $OUTPUT->header();
 echo '<div class="tomb-wrap"><h1>監査記録</h1><p>連鎖の整合性：' . (audit::verify() ? '確認済み' : '不一致があります') . '</p>' .
-    '<p>申請・権限付き取得・通知・運用モードの変更を追跡できます。ハッシュ連鎖は外部へ保存したチェックポイントとの照合に利用できます。</p>' .
+    '<p>申請・権限付き取得・通知・運用モードの変更を追跡できます。ハッシュ連鎖は外部へ保存したチェックポイントとの照合に利用できます。承認済みの個人データ削除では識別情報を消去し、連鎖を再計算し、削除前の末尾ハッシュを privacy_checkpoint に記録します。</p>' .
     ui::post('export', 0, '監査記録を JSONL で取得') . '<table class="tomb-table"><tr><th>日時</th><th>操作</th><th>版</th><th>実行者ID</th></tr>';
 foreach ($DB->get_records('local_tomb_audit', null, 'id DESC', '*', 0, 100) as $row) {
     echo '<tr><td>' . s(userdate($row->timecreated)) . '</td><td>' . s($row->event) . '</td><td>' .
