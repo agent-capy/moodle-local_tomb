@@ -17,13 +17,15 @@ final class manager {
     }
 
     public static function request(array $courseids, int $subjectid, string $kind = 'learner',
-            string $policy = 'pseudonymised', string $reason = '', int $revisionof = 0, bool $download = false): int {
-        global $DB, $USER;
+            string $policy = 'pseudonymised', string $reason = '', int $revisionof = 0, bool $download = false, ?string $outputlang = null): int {
+        global $DB, $USER, $CFG;
         if (!config::allowed($subjectid, true)) {
             throw new \moodle_exception('unavailable', 'local_tomb');
         }
         $subject = \core_user::get_user($subjectid, '*', MUST_EXIST);
         \core_user::require_active_user($subject);
+        $outputlang = $subjectid == $USER->id ? ($outputlang ?? i18n::language()) : i18n::language($subject->lang ?: $CFG->lang);
+        if (!in_array($outputlang, ['ja', 'en'], true)) {throw new \invalid_parameter_exception('Unsupported archive language');}
         $system = \context_system::instance();
         require_capability('local/tomb:exportown', $system, $subjectid);
         $admin = has_capability('local/tomb:manage', $system);
@@ -90,7 +92,7 @@ final class manager {
             $recent = $recent ? reset($recent) : null;
             $encoded = json_encode($courseids, JSON_THROW_ON_ERROR);
             if ($recent && in_array($recent->status, ['queued', 'running'], true) && $recent->courses === $encoded &&
-                    $recent->kind === $kind && $recent->policy === $policy) {
+                    $recent->kind === $kind && $recent->policy === $policy && ($recent->outputlang ?? 'ja') === $outputlang) {
                 if ($download && $subjectid == $USER->id) {
                     $DB->set_field('local_tomb_request', 'wantdownload', 1, ['id' => $recent->id]);
                 }
@@ -101,14 +103,14 @@ final class manager {
                 throw new \moodle_exception('ratelimit', 'local_tomb');
             }
             $record = (object)['subjectid' => $subjectid, 'requesterid' => (int)$USER->id, 'kind' => $kind,
-                'policy' => $policy, 'reason' => trim($reason), 'courses' => $encoded,
+                'policy' => $policy, 'reason' => trim($reason), 'courses' => $encoded, 'outputlang' => $outputlang,
                 'status' => 'queued', 'stage' => 'queued', 'message' => '', 'timecreated' => time(),
                 'revisionof' => $revisionof, 'isrehearsal' => config::mode() === 'rehearsal' ? 1 : 0,
                 'plan' => '', 'expected' => '', 'actual' => '', 'lasterror' => '',
                 'privacyversion' => 1, 'wantdownload' => $download && $subjectid == $USER->id ? 1 : 0];
             $record->id = $DB->insert_record('local_tomb_request', $record);
             audit::add('requested', $record->id, ['subject' => $subjectid, 'courses' => $courseids,
-                'kind' => $kind, 'policy' => $policy, 'reason' => $reason]);
+                'kind' => $kind, 'policy' => $policy, 'reason' => $reason, 'outputlang' => $outputlang]);
             self::queue((int)$record->id, 'generate');
             return (int)$record->id;
         } finally {
@@ -173,6 +175,9 @@ final class manager {
             throw new \moodle_exception('workerbusy', 'local_tomb');
         }
         $olduser = $USER;
+        $oldlanguage = null;
+        $started = microtime(true);
+        $memorybefore = memory_get_usage(true);
         try {
             $request = $DB->get_record('local_tomb_request', ['id' => $id]);
             if (!$request || $request->status !== 'queued' || !config::allowed($request->subjectid, true)) {
@@ -180,6 +185,7 @@ final class manager {
             }
             \core\session\manager::set_user(\core_user::get_user($request->subjectid, '*', MUST_EXIST));
             \core_user::require_active_user($USER);
+            $oldlanguage = force_current_language($request->outputlang ?? 'ja');
             require_capability('local/tomb:exportown', \context_system::instance());
             storage::clear($request, true);
             $request->status = 'running';
@@ -187,6 +193,8 @@ final class manager {
             $request->heartbeat = time();
             $DB->update_record('local_tomb_request', $request);
             audit::add('collecting', $id, [], 0);
+            $budget = estimate::inventory((int)$request->subjectid, json_decode($request->courses, true), $request->kind);
+            if (!$budget['capacity_available_for_budget']) {throw new \moodle_exception('capacity', 'local_tomb');}
             $collector = new collector($request);
             $collector->generate();
             $plan = storage::plan($request);
@@ -201,6 +209,7 @@ final class manager {
             $request->message = '';
             $request->heartbeat = time();
             $DB->update_record('local_tomb_request', $request);
+            estimate::measured($id, 'collection', $started, $memorybefore);
             audit::add('generated', $id, ['bytes' => $request->totalbytes], 0);
             if ($DB->get_field('local_tomb_request', 'wantdownload', ['id' => $request->id])) {
                 // The owner's creation form explicitly requests both collection and ZIP preparation.
@@ -218,32 +227,34 @@ final class manager {
             mtrace('Tomb request ' . $id . ($completed ? ' ZIP preparation failed: ' : ' collection failed: ') . get_class($e));
         } finally {
             \core\session\manager::set_user($olduser);
+            if ($oldlanguage !== null) {force_current_language($oldlanguage);}
             $worker->release();
         }
     }
 
     public static function notify(object $request, string $type): bool {
-        global $DB;
+        global $DB, $CFG;
         if (!in_array($type, ['ready', 'collected', 'failed', 'reminder'], true)) {
             throw new \invalid_parameter_exception('Invalid notification type');
         }
+        $user = \core_user::get_user($request->subjectid);
+        $language = i18n::language(($user->lang ?? '') ?: $CFG->lang);
         $notice = new \core\message\message();
         $notice->component = 'local_tomb';
         $notice->name = $type === 'collected' ? 'ready' : $type;
         $notice->userfrom = \core_user::get_noreply_user();
-        $notice->subject = get_string('notification_' . $type, 'local_tomb');
-        $notice->fullmessage = $notice->subject . "\n" . str_replace('\\n', "\n", get_string('notification_body', 'local_tomb', (object)[
+        $notice->subject = i18n::get('notification_' . $type, null, $language);
+        $notice->fullmessage = $notice->subject . "\n" . str_replace('\\n', "\n", i18n::get('notification_body', (object)[
             'id' => $request->id, 'size' => display_size($request->totalbytes),
             'omissions' => $DB->count_records('local_tomb_omission', ['requestid' => $request->id]),
-            'deadline' => config::mode() === 'rehearsal' ? get_string('rehearsal', 'local_tomb') :
-                userdate((int)config::get('deliverydeadline', 0))]));
+            'deadline' => config::mode() === 'rehearsal' ? i18n::get('rehearsal', null, $language) :
+                userdate((int)config::get('deliverydeadline', 0))], $language));
         $notice->fullmessageformat = FORMAT_PLAIN;
         $notice->fullmessagehtml = '';
         $notice->smallmessage = $notice->subject;
         $notice->notification = 1;
         $notice->contexturl = (new \moodle_url('/local/tomb/index.php', ['id' => $request->id]))->out(false);
-        $notice->contexturlname = get_string('viewarchive', 'local_tomb');
-        $user = \core_user::get_user($request->subjectid);
+        $notice->contexturlname = i18n::get('viewarchive', null, $language);
         $success = false;
         if ($user && !$user->deleted && !$user->suspended) {
             $notice->userto = $user;
@@ -263,9 +274,11 @@ final class manager {
                 }
                 $adminnotice = clone $notice;
                 $adminnotice->userto = $admin;
-                $adminnotice->fullmessage = 'Tomb archive #' . $request->id . ' needs administrator attention.';
+                $adminnotice->subject = i18n::get('notification_failed', null, $admin->lang ?: $CFG->lang);
+                $adminnotice->smallmessage = $adminnotice->subject;
+                $adminnotice->fullmessage = i18n::get('adminnotificationbody', $request->id, $admin->lang ?: $CFG->lang);
                 $adminnotice->contexturl = (new \moodle_url('/local/tomb/manage.php'))->out(false);
-                $adminnotice->contexturlname = get_string('manage', 'local_tomb');
+                $adminnotice->contexturlname = i18n::get('manage', null, $admin->lang ?: $CFG->lang);
                 try {
                     if (message_send($adminnotice)) {
                         audit::add('administrator_notified', $request->id, [], 0);

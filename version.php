@@ -4,8 +4,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_tomb';
-$plugin->version = 2026092001;
+$plugin->version = 2026092002;
 $plugin->requires = 2025041400;
 $plugin->maturity = MATURITY_ALPHA;
-$plugin->release = '0.2.0-alpha';
+$plugin->release = '0.3.0-alpha';
 $plugin->supported = [500, 500];

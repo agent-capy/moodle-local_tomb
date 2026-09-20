@@ -20,6 +20,8 @@
         <FIELD NAME="heartbeat" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
         <FIELD NAME="revisionof" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
         <FIELD NAME="isrehearsal" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
+        <FIELD NAME="outputlang" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="ja" />
+        <FIELD NAME="metrics" TYPE="text" NOTNULL="false" />
         <FIELD NAME="privacyversion" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="2" DEFAULT="0" />
         <FIELD NAME="timepurged" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="10" DEFAULT="0" />
         <FIELD NAME="totalbytes" TYPE="int" NOTNULL="true" SEQUENCE="false" LENGTH="20" DEFAULT="0" />
@@ -37,6 +39,7 @@
         <KEY NAME="primary" TYPE="primary" FIELDS="id" />
       </KEYS>
       <INDEXES>
+        <INDEX NAME="requester" UNIQUE="false" FIELDS="requesterid" />
         <INDEX NAME="subject" UNIQUE="false" FIELDS="subjectid" />
         <INDEX NAME="status" UNIQUE="false" FIELDS="status" />
       </INDEXES>

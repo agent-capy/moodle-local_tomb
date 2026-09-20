@@ -3,8 +3,8 @@
 require_once(__DIR__ . '/../../config.php');
 require_login();
 require_capability('local/tomb:viewaudit', context_system::instance());
-use local_tomb\local\{audit, ui};
-ui::start('Tomb 監査記録', '/local/tomb/audit.php');
+use local_tomb\local\{audit, ui, i18n};
+ui::start(i18n::get('text_tomb_audit_log_0818c9'), '/local/tomb/audit.php');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_sesskey();
     audit::add('audit_exported');
@@ -19,11 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 echo $OUTPUT->header();
-echo '<div class="tomb-wrap"><h1>監査記録</h1><p>連鎖の整合性：' . (audit::verify() ? '確認済み' : '不一致があります') . '</p>' .
-    '<p>申請・権限付き取得・通知・運用モードの変更を追跡できます。ハッシュ連鎖は外部へ保存したチェックポイントとの照合に利用できます。承認済みの個人データ削除では識別情報を消去し、連鎖を再計算し、削除前の末尾ハッシュを privacy_checkpoint に記録します。</p>' .
-    ui::post('export', 0, '監査記録を JSONL で取得') . '<table class="tomb-table"><tr><th>日時</th><th>操作</th><th>版</th><th>実行者ID</th></tr>';
+echo i18n::get('text_audit_log_chain_integrity_5508a5') . (audit::verify() ? i18n::get('text_verified_1f12f1') : i18n::get('text_mismatch_detected_6b1edf')) . '</p>' .
+    i18n::get('text_track_requests_authorised_downloads_notifications_a831dd') .
+    ui::post('export', 0, i18n::get('text_download_audit_log_as_jsonl_05bf32')) . i18n::get('text_time_event_version_actor_id_25e767');
 foreach ($DB->get_records('local_tomb_audit', null, 'id DESC', '*', 0, 100) as $row) {
     echo '<tr><td>' . s(userdate($row->timecreated)) . '</td><td>' . s($row->event) . '</td><td>' .
         $row->requestid . '</td><td>' . $row->actorid . '</td></tr>';
 }
-echo '</table><p><a href="manage.php">管理画面へ</a></p></div>' . $OUTPUT->footer();
+echo i18n::get('text_archive_management_23f47c') . $OUTPUT->footer();

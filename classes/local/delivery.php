@@ -132,6 +132,8 @@ final class delivery {
             $worker->release();
             throw new \moodle_exception('workerbusy', 'local_tomb');
         }
+        $started = microtime(true);
+        $memorybefore = memory_get_usage(true);
         $cache = null;
         $part = null;
         $finished = null;
@@ -189,6 +191,7 @@ final class delivery {
             $cache->lasterror = '';
             $DB->update_record('local_tomb_cache', $cache);
             $DB->set_field('local_tomb_request', 'lasterror', '', ['id' => $id, 'status' => 'ready']);
+            estimate::measured($id, 'assembly', $started, $memorybefore);
             audit::add('zip_ready', $id, ['sha256' => $sha, 'bytes' => $request->totalbytes], 0);
             manager::notify($request, 'ready');
         } catch (\Throwable $e) {

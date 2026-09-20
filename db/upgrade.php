@@ -23,5 +23,17 @@ function xmldb_local_tomb_upgrade(int $oldversion): bool {
         }
         upgrade_plugin_savepoint(true, 2026092001, 'local', 'tomb');
     }
+    if ($oldversion < 2026092002) {
+        global $DB;
+        $manager = $DB->get_manager();
+        $table = new xmldb_table('local_tomb_request');
+        foreach ([new xmldb_field('outputlang', XMLDB_TYPE_CHAR, '10', null, XMLDB_NOTNULL, null, 'ja'),
+                new xmldb_field('metrics', XMLDB_TYPE_TEXT, null, null, null)] as $field) {
+            if (!$manager->field_exists($table, $field)) {$manager->add_field($table, $field);}
+        }
+        $index = new xmldb_index('requester', XMLDB_INDEX_NOTUNIQUE, ['requesterid']);
+        if (!$manager->index_exists($table, $index)) {$manager->add_index($table, $index);}
+        upgrade_plugin_savepoint(true, 2026092002, 'local', 'tomb');
+    }
     return true;
 }

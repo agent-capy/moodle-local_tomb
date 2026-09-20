@@ -37,23 +37,30 @@ final class audit {
         }
         try {
             $transaction = $DB->start_delegated_transaction();
-            $rows = $DB->get_records('local_tomb_audit', null, 'id ASC');
-            $last = $rows ? end($rows) : null;
+            $tail = $DB->get_records('local_tomb_audit', null, 'id DESC', '*', 0, 1);
+            $last = $tail ? reset($tail) : null;
             $oldhead = $last ? $last->eventhash : str_repeat('0', 64);
             $previous = str_repeat('0', 64);
             $count = 0;
-            foreach ($rows as $row) {
-                if ((int)$row->actorid === $userid || in_array((int)$row->requestid, array_map('intval', $requestids), true)) {
-                    $row->actorid = 0;
-                    $row->requestid = 0;
-                    $row->event = 'privacy_redacted';
-                    $row->details = '{}';
-                    $count++;
+            $affected = array_fill_keys(array_map('intval', $requestids), true);
+            $cursor = 0;
+            $ceiling = $last ? (int)$last->id : 0;
+            while ($rows = $DB->get_records_select('local_tomb_audit', 'id > ? AND id <= ?',
+                    [$cursor, $ceiling], 'id ASC', '*', 0, 250)) {
+                foreach ($rows as $row) {
+                    if ((int)$row->actorid === $userid || isset($affected[(int)$row->requestid])) {
+                        $row->actorid = 0;
+                        $row->requestid = 0;
+                        $row->event = 'privacy_redacted';
+                        $row->details = '{}';
+                        $count++;
+                    }
+                    $row->prevhash = $previous;
+                    $row->eventhash = self::hash($row);
+                    $DB->update_record('local_tomb_audit', $row);
+                    $previous = $row->eventhash;
+                    $cursor = (int)$row->id;
                 }
-                $row->prevhash = $previous;
-                $row->eventhash = self::hash($row);
-                $DB->update_record('local_tomb_audit', $row);
-                $previous = $row->eventhash;
             }
             $checkpoint = (object)['requestid' => 0, 'actorid' => 0, 'event' => 'privacy_checkpoint',
                 'details' => json_encode(['previoushead' => $oldhead, 'redacted' => $count], JSON_THROW_ON_ERROR),
@@ -83,4 +90,3 @@ final class audit {
         }
     }
 }
-

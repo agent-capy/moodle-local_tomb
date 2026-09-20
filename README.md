@@ -1,10 +1,10 @@
 # Tomb — Moodle 学習記録アーカイブ
 
-Moodle の教材と学習成果を、ZIP を展開して読む静的 HTML にまとめる `local_tomb` プラグインです。**0.2.0-alpha / PoC**。Moodle 5.0・PHP 8.4 の共有検証環境で動作確認しています。
+Moodle の教材と学習成果を、ZIP を展開して読む静的 HTML にまとめる `local_tomb` プラグインです。**0.3.0-alpha / PoC**。Moodle 5.0・PHP 8.4 の共有検証環境で動作確認しています。
 
 生成物は `index.html` から閲覧できます。サーバー起動や Moodle へのログインは不要です。画面の JavaScript を無効にしても本文とリンクは使えます。数式表示には同梱の MathJax を使います。
 
-![オフラインの学習記録](docs/screenshots/0.2/04-learner-offline-home.png)
+![オフラインの学習記録](docs/screenshots/0.3/01-offline-home-ja.png)
 
 ## できること
 
@@ -13,6 +13,8 @@ Moodle の教材と学習成果を、ZIP を展開して読む静的 HTML にま
 - 閲覧可能なフォーラム投稿・返信・添付。グループ、公開期間、Q&A の可視性を反映し、他の投稿者を仮名で表示。
 - 小テストの保存済み受験を、本人のレビュー権限に従って出力。多肢選択、○×、記述、数値、組み合わせの5形式を検証。受験中の記録と未対応形式は注記。
 - 教師版の保存、学生版の作成代行、管理者によるコース単位の複数受付（1回20名まで）、版ごとの受領一覧・CSV・手動リマインド。
+- 日本語・英語の画面と静的ページ。作成時の出力言語を版に固定し、教材本文は元の言語で保存。
+- 履歴と受領管理のページ送り、コース・状態・受領状況の絞り込み、同じ条件でのCSV出力。
 - 旧版の保持、新版とのページ増減・本文差分、保存対象の注記、manifest、監査記録の JSONL 出力。
 
 教師版は仮名が標準です。実名には `local/tomb:exportothersdata` の明示付与と理由が必要です。教師版は採点・成績閲覧権限に従い、未公開の評価や講評も扱います。学生版は引き続き本人への公開内容に限定します。実名出力の権限を失った後は、完成済み実名版の取得も停止します。仮名化は氏名・投稿者欄が対象で、本文と元ファイル内の個人情報は書き換えません。
@@ -44,6 +46,8 @@ Moodle の教材と学習成果を、ZIP を展開して読む静的 HTML にま
 
 同じ版のキャッシュ再構成は同じバイト列になります。収集中に削除が確認された元資料は、その参照とともに出力対象から外します。完成版の保存材料を失った場合は、その版の配信を止め、新しい版の作成を案内します。
 
+見積CLIは既知の添付サイズと仮予算を区別します。提出物や投稿等の全サイズは収集前には未確定で、上限を保証しません。管理画面では処理時間・PHPプロセスのピークメモリ・保存量の実測を確認できます。
+
 既定値は生成・組立の同時実行1件、ダウンロード1件、ZIP キャッシュ合計2 GiB・最長6時間です。ディスク空き容量は5 GiBまたは全体の10%の大きい方を確保します。材料は配送期限まで保持し、その後に管理者が明示的に削除します。
 
 ## 開発・検証
@@ -55,17 +59,17 @@ php tests/run.php --zip64
 # 任意。ローカルの一時領域を使う実ファイル >4 GiB の検証。
 php tests/run.php --large-file
 
-# Moodle CLI。対象ユーザーの可視活動を列挙するだけで、要求や ZIP を作らない。
+# Moodle CLI。可視活動・既知の添付サイズ・仮予算を表示。要求や ZIP は作らない。
 php local/tomb/cli/estimate.php --userid=USER_ID --courses=COURSE_ID
 ```
 
-専用データを作る `cli/fixture.php` と、明示実行の `tests/integration.php`、`tests/named_export.php` を同梱しています。0.2では `tests/continuation.php`、`tests/privacy.php`、`tests/mode_race.php`、`tests/preparation_failure.php` で権限・個人データ・競合・障害復旧を追加確認しています。共有 DB の初期化を伴う PHPUnit/Behat は使用しません。検証コース以外を変更しない条件は [運用手順](docs/OPERATIONS.md)に記載しています。
+専用データを作る `cli/fixture.php` と、明示実行の `tests/integration.php`、`tests/named_export.php` を同梱しています。0.2では `tests/continuation.php`、`tests/privacy.php`、`tests/mode_race.php`、`tests/preparation_failure.php` で権限・個人データ・競合・障害復旧を追加確認しています。0.3では `tests/iteration.php` と `tests/language_capacity.php` に履歴・状態・言語固定・容量計測・監査分割処理の試験を追加しました。提出用の自然な教材は `cli/demo.php --create` で別コースに追加します。共有 DB の初期化を伴う PHPUnit/Behat は使用しません。検証コース以外を変更しない条件は [運用手順](docs/OPERATIONS.md)に記載しています。
 
 実画面は [スクリーンショット一覧](docs/SCREENSHOTS.md)、WBS に対する到達点は [実装記録](docs/PROGRESS.md)で確認できます。
 
 ## アルファ版の境界
 
-Windows・Safari の実機検証、実規模の負荷試験、Moodle 5.0 以外の検証は未実施です。全活動への対応、停止済みアカウントへの機関交付、詳細なルーブリック、全言語の画面翻訳は今後の対象です。未対応活動や埋め込みは保存内容の注記に残します。添付資料は元の形式で保存します。
+Windows・Safari の実機検証、実規模の負荷試験、Moodle 5.0 以外の検証は未実施です。全活動への対応、停止済みアカウントへの機関交付、詳細なルーブリック、日英以外の画面翻訳は今後の対象です。未対応活動や埋め込みは保存内容の注記に残します。添付資料は元の形式で保存します。
 
 GPL v3 or later。[LICENSE](LICENSE)と [同梱ソフトウェア](docs/THIRD_PARTY.md)を参照してください。
 

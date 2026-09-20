@@ -1,0 +1,143 @@
+{
+  "release": "0.2.0-alpha",
+  "health": {
+    "timestamp": "2026-09-20T00:07:24+00:00",
+    "coreversion": "2025041400",
+    "pluginversion": "2026092001",
+    "php": "8.4.20",
+    "maintenance": false,
+    "needs_upgrade": false,
+    "plugin_mismatches": [],
+    "mode": "rehearsal",
+    "cohortid": 1,
+    "audit_valid": true,
+    "capacity_available": true,
+    "last_cron_age_seconds": 23,
+    "temporary_role_remaining": false,
+    "teacher_manage": false,
+    "teacher_audit": false,
+    "teacher_named": false,
+    "original_courses_remaining": 5,
+    "privacy_fixture_active_users": 0,
+    "fixture_assignment_hidden": "0",
+    "cache_hashes": [
+      {
+        "requestid": "2",
+        "sha256": "8f1c8436e488e4aebbdb734f2f809526382c7c77d96e0af196e8db5e129b58fc",
+        "bytes": "6271751"
+      },
+      {
+        "requestid": "11",
+        "sha256": "21628304f5152eb0206c9647406361c24f548c837085c833fec44a317f9b680a",
+        "bytes": "6279752"
+      },
+      {
+        "requestid": "35",
+        "sha256": "93934162db5919f74fccc7049cb4d9de7f16261e1a4fef3ec33484891e117532",
+        "bytes": "6280476"
+      },
+      {
+        "requestid": "36",
+        "sha256": "cd4911d8db05401caefd6a15c1648aa1c0b0faff0fecdfeb4e981187de395cb3",
+        "bytes": "6278239"
+      }
+    ]
+  },
+  "checks": {
+    "php_syntax_files": 42,
+    "deployed_matching_runtime_files": 153,
+    "unit_zip64_assertions": 35,
+    "moodle_integration_assertions": 38,
+    "teacher_permission_assertions": 14,
+    "privacy_assertions": 25,
+    "mode_race_assertions": 1,
+    "preparation_recovery_assertions": 2,
+    "old_versions_identically_reconstructed": [
+      2,
+      11
+    ]
+  },
+  "downloads": [
+    {
+      "role": "learner",
+      "id": 36,
+      "bytes": 6278239,
+      "sha256": "cd4911d8db05401caefd6a15c1648aa1c0b0faff0fecdfeb4e981187de395cb3",
+      "range": "206, exact bytes 100-199, no-store",
+      "redownload": "identical",
+      "otherOwner": "denied"
+    },
+    {
+      "role": "teacher",
+      "id": 35,
+      "bytes": 6280476,
+      "sha256": "93934162db5919f74fccc7049cb4d9de7f16261e1a4fef3ec33484891e117532",
+      "range": "206, exact bytes 100-199, no-store",
+      "redownload": "identical",
+      "otherOwner": "denied"
+    }
+  ],
+  "zips": [
+    {
+      "role": "learner",
+      "entries": 133,
+      "html": 15,
+      "crc": "PASS",
+      "private_grade_feedback": false
+    },
+    {
+      "role": "teacher",
+      "entries": 135,
+      "html": 16,
+      "crc": "PASS",
+      "private_grade_feedback": true
+    }
+  ],
+  "offline": [
+    {
+      "role": "learner",
+      "offline": [
+        {
+          "js": true,
+          "pages": 15,
+          "external": [],
+          "errors": []
+        },
+        {
+          "js": false,
+          "pages": 15,
+          "external": [],
+          "errors": []
+        }
+      ],
+      "mobile": "3 pages, no horizontal overflow",
+      "print": "assignment PDF"
+    },
+    {
+      "role": "teacher",
+      "offline": [
+        {
+          "js": true,
+          "pages": 16,
+          "external": [],
+          "errors": []
+        },
+        {
+          "js": false,
+          "pages": 16,
+          "external": [],
+          "errors": []
+        }
+      ],
+      "mobile": "3 pages, no horizontal overflow",
+      "print": "assignment PDF"
+    }
+  ],
+  "new_screenshots": 11,
+  "previous_validation": "VALIDATION_0_1.md",
+  "limits": [
+    "Windows and Safari not tested",
+    "Operational-scale throughput not measured",
+    "Legacy archives require explicit material purge before full Privacy API migration"
+  ]
+}

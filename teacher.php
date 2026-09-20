@@ -2,9 +2,9 @@
 // License: GNU GPL v3 or later.
 require_once(__DIR__ . '/../../config.php');
 require_login();
-use local_tomb\local\{config, manager, ui};
+use local_tomb\local\{config, manager, ui, listing, i18n};
 
-ui::start('担当コースのアーカイブ', '/local/tomb/teacher.php');
+ui::start(i18n::get('text_teaching_archives_d93d0c'), '/local/tomb/teacher.php');
 $courses = [];
 foreach (manager::courses((int)$USER->id) as $course) {
     if (has_capability('local/tomb:exportteacher', context_course::instance($course->id))) {
@@ -45,10 +45,11 @@ $batchresults = [];
 $cangenerate = in_array(config::mode(), ['rehearsal', 'active'], true);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_sesskey();
+    try {
     $action = required_param('action', PARAM_ALPHA);
     if ($action === 'teacher') {
         $id = manager::request([$courseid], (int)$USER->id, 'teacher', required_param('policy', PARAM_ALPHA),
-            optional_param('reason', '', PARAM_TEXT), 0, true);
+            optional_param('reason', '', PARAM_TEXT), 0, true, optional_param('outputlang', i18n::language(), PARAM_ALPHA));
         redirect(new moodle_url('/local/tomb/index.php', ['id' => $id]));
     } else if ($action === 'delegate') {
         require_capability('local/tomb:delegate', $context);
@@ -62,68 +63,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $requestid = manager::request([$courseid], $userid);
                 $accepted[] = $requestid;
-                $batchresults[] = [fullname($users[$userid]), '#' . $requestid, '受付済み'];
+                $batchresults[] = [fullname($users[$userid]), '#' . $requestid, i18n::get('text_accepted_79bc85')];
             } catch (moodle_exception $e) {
                 $failed++;
                 $batchresults[] = [fullname($users[$userid]), '—', $e->getMessage()];
             }
         }
-        $notice = count($accepted) . ' 件を受け付けました。' . ($failed ? $failed . ' 件は受付できませんでした（直近の申請・利用資格をご確認ください）。' : '');
+        $notice = count($accepted) . i18n::get('text_requests_accepted_b78755') . ($failed ? $failed . i18n::get('text_requests_could_not_be_accepted_d6847a') : '');
     }
+    } catch (Throwable $e) {$notice = ui::request_error($e);}
 }
 echo $OUTPUT->header();
 echo '<div class="tomb-wrap"><div class="tomb-hero"><div class="tomb-eyebrow">TOMB / COURSE ARCHIVES</div>' .
-    '<h1>授業の成果を、次につなぐ。</h1><p>担当コースの保存と、学生本人への学習記録の交付を進められます。</p></div>';
+    i18n::get('text_carry_the_work_of_your_10d095');
 if ($notice) {
     echo $OUTPUT->notification(s($notice), 'info');
 }
 if ($batchresults) {
-    echo '<section class="tomb-box"><h2>今回の受付結果</h2><table class="tomb-table"><tr><th>対象者</th><th>受付</th><th>結果</th></tr>';
+    echo i18n::get('text_results_of_this_batch_owner_de94af');
     foreach ($batchresults as [$name, $number, $result]) {
         echo '<tr><td>' . s($name) . '</td><td>' . s($number) . '</td><td>' . s($result) . '</td></tr>';
     }
     echo '</table></section>';
 }
 if (!$cangenerate) {
-    echo '<p class="tomb-warning">現在は新しい収集を受け付けていません。受付済みの申請の進捗は引き続き確認できます。</p>';
+    echo i18n::get('text_new_collection_requests_are_closed_9cd0ff');
 }
-echo '<form method="get" class="mb-4"><label>コース <select name="courseid" class="custom-select">';
+echo i18n::get('text_course_14fbb3');
 foreach ($courses as $course) {
     echo '<option value="' . $course->id . '"' . ($course->id == $courseid ? ' selected' : '') . '>' . s($course->fullname) . '</option>';
 }
-echo '</select></label> <button type="submit" class="tomb-button tomb-secondary">選択</button></form><div class="tomb-grid">';
-echo '<section class="tomb-box"><h2>教師版を作成</h2><p class="tomb-muted">担当者に閲覧が許可された教材と在籍者の学習成果を保存します。' .
-    '担当者の採点・成績閲覧権限に従い、学生への公開前の評価や講評を含む場合があります。</p>' .
+echo i18n::get('text_select_b65ec0');
+echo i18n::get('text_create_a_teaching_archive_save_ad831b') .
+    i18n::get('text_your_grading_and_gradebook_permissions_088383') .
     '<form method="post"><input type="hidden" name="sesskey" value="' . sesskey() . '"><input type="hidden" name="action" value="teacher">' .
-    '<input type="hidden" name="courseid" value="' . $courseid . '"><label>投稿者・学生の表示 <select name="policy" class="custom-select">' .
-    '<option value="pseudonymised">仮名で表示（標準）</option>';
+    '<input type="hidden" name="courseid" value="' . $courseid . '">' . ui::language_select() . i18n::get('text_author_and_student_names_01c6e8') .
+    i18n::get('text_pseudonyms_default_9e7ff1');
 if (has_capability('local/tomb:exportothersdata', $context)) {
-    echo '<option value="full">実名で表示（理由の記録が必要）</option>';
+    echo i18n::get('text_real_names_a_recorded_reason_08b48e');
 }
-echo '</select></label><label class="d-block">実名で保存する理由 <textarea name="reason" class="form-control" rows="2"></textarea></label>' .
-    '<p class="tomb-muted">仮名化は投稿者・氏名欄が対象です。本文やファイル内の個人情報は書き換えません。</p>' .
-    '<button type="submit" class="tomb-button"' . (!$cangenerate ? ' disabled' : '') . '>教師版を作成して受け取る →</button></form></section>';
-echo '<section class="tomb-box"><h2>学生版の作成を代行</h2><p class="tomb-muted">収集完了後は本人へ通知します。学生はログインしてZIPの準備を依頼できます。' .
-    '代行した教師が学生版を取得することはできません。</p>';
+echo i18n::get('text_reason_for_including_real_names_dbf044') .
+    i18n::get('text_pseudonyms_replace_author_and_name_83d56b') .
+    '<button type="submit" class="tomb-button"' . (!$cangenerate ? ' disabled' : '') . i18n::get('text_create_and_receive_a_teaching_fa07a3');
+echo i18n::get('text_request_archives_for_students_students_5f5fab') .
+    i18n::get('text_a_teacher_making_a_request_b59457');
 if ($cangenerate && has_capability('local/tomb:delegate', $context)) {
     echo '<form method="post"><input type="hidden" name="sesskey" value="' . sesskey() . '"><input type="hidden" name="action" value="delegate">' .
         '<input type="hidden" name="courseid" value="' . $courseid . '">';
     foreach ($users as $user) {
         echo '<label class="tomb-course"><input type="checkbox" name="users[]" value="' . $user->id . '"><span>' . s(fullname($user)) . '</span></label>';
     }
-    echo '<p class="tomb-muted">1回につき20名まで。検証モードでは指定コーホートの学生のみ表示します。</p>' .
-        '<button type="submit" class="tomb-button">選んだ学生の記録を準備</button></form>';
+    echo i18n::get('text_select_up_to_students_at_60d120') .
+        i18n::get('text_prepare_records_for_selected_students_46c16f');
 }
-echo '</section></div><section class="tomb-box"><h2>代行した申請</h2><table class="tomb-table"><tr><th>対象者</th><th>受付</th><th>進捗</th><th>受取確認</th></tr>';
-foreach ($DB->get_records_select('local_tomb_request', 'requesterid = ? AND subjectid <> ?', [$USER->id, $USER->id], 'id DESC', '*', 0, 50) as $request) {
-    if (json_decode($request->courses, true) !== [$courseid]) {
-        continue;
-    }
-    if (!isset($users[$request->subjectid])) {
-        continue;
-    }
-    $labels = ['queued' => '受付済み', 'running' => '収集中', 'ready' => '収集完了', 'failed' => '要確認', 'blocked' => '配信停止'];
+echo i18n::get('text_requests_you_made_for_students_a4f714');
+$filters = listing::parameters();
+$filters['coursefilter'] = $courseid;
+$selection = has_capability('local/tomb:delegate', $context) ? new listing('delegated', $filters, array_keys($users)) : null;
+$page = $selection ? $selection->page(optional_param('page', 0, PARAM_INT)) : ['records' => [], 'total' => 0, 'page' => 0, 'perpage' => 25];
+$listurl = new moodle_url('/local/tomb/teacher.php', $filters + ['courseid' => $courseid]);
+echo listing::form($filters, [], false, ['courseid' => $courseid]) . listing::navigation($page, $listurl) .
+    i18n::get('text_owner_request_progress_receipt_d35980');
+foreach ($page['records'] as $request) {
+    $labels = ['queued' => i18n::get('text_accepted_79bc85'), 'running' => i18n::get('text_collecting_ce889f'), 'ready' => i18n::get('text_collection_complete_160abe'), 'failed' => i18n::get('text_needs_attention_ea81c0'), 'blocked' => i18n::get('text_delivery_blocked_896c26')];
     echo '<tr><td>' . s(fullname($users[$request->subjectid])) . '</td><td>#' . $request->id . '</td><td>' .
-        s($labels[$request->status] ?? $request->status) . '</td><td>' . ($request->received ? '本人が確認済み' : '未確認') . '</td></tr>';
+        s($labels[$request->status] ?? $request->status) . '</td><td>' . ($request->received ? i18n::get('text_confirmed_by_owner_ee8cda') : i18n::get('text_not_confirmed_8ac888')) . '</td></tr>';
 }
-echo '</table></section><a href="index.php">本人向け画面へ</a></div>' . $OUTPUT->footer();
+echo '</table>' . listing::navigation($page, $listurl) . i18n::get('text_my_learning_archive_3c2287') . $OUTPUT->footer();

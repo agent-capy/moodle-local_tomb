@@ -13,7 +13,7 @@ final class provider implements \core_privacy\local\metadata\provider,
     public static function get_metadata(collection $collection): collection {
         foreach ([
             'local_tomb_request' => ['subjectid', 'requesterid', 'reason', 'courses', 'status', 'timecreated',
-                'timestarted', 'timecollected', 'timefinished', 'revisionof', 'policy', 'kind', 'notified',
+                'timestarted', 'timecollected', 'timefinished', 'revisionof', 'policy', 'kind', 'outputlang', 'metrics', 'notified',
                 'lastdownload', 'received', 'downloadcount', 'plan', 'expected', 'actual', 'lasterror'],
             'local_tomb_person' => ['requestid', 'userid', 'payload'],
             'local_tomb_entry' => ['requestid', 'zippath', 'fileid', 'contenthash'],
@@ -78,12 +78,12 @@ final class provider implements \core_privacy\local\metadata\provider,
                 $path = ['Tomb', 'request-' . $request->id];
                 $data = ['id' => $request->id, 'kind' => $request->kind, 'policy' => $request->policy,
                     'requested_at' => $request->timecreated, 'courses' => json_decode($request->courses, true),
-                    'reason' => $request->reason, 'status' => $request->status];
+                    'reason' => $request->reason, 'status' => $request->status, 'output_language' => $request->outputlang ?? 'ja'];
                 if ((int)$request->subjectid === $userid) {
                     $data += ['collected_at' => $request->timecollected, 'finished_at' => $request->timefinished,
                         'notification_at' => $request->notified, 'downloads' => $request->downloadcount,
                         'last_download_at' => $request->lastdownload, 'receipt_at' => $request->received,
-                        'purged_at' => $request->timepurged, 'previous_version' => $request->revisionof,
+                        'purged_at' => $request->timepurged, 'measurements' => json_decode($request->metrics ?? '{}'), 'previous_version' => $request->revisionof,
                         'omissions' => array_values($DB->get_records('local_tomb_omission', ['requestid' => $request->id]))];
                     if (!$request->timepurged && $request->kind === 'learner') {
                         foreach ($DB->get_records('local_tomb_entry', ['requestid' => $request->id], 'id') as $entry) {

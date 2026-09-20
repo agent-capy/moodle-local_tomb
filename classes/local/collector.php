@@ -68,7 +68,7 @@ final class collector {
             storage::clear($this->request, true);
             foreach ($this->excludedcourses as $courseid) {
                 manager::omission($this->request->id, (int)$courseid, 0, 'policy_excluded',
-                    'Course is no longer accessible to the archive subject');
+                    i18n::get('coursenolongeravailable'));
             }
             $this->storage = new storage($this->request);
             $this->documents = [];
@@ -108,7 +108,7 @@ final class collector {
                         $sectionnumber = $cm->sectionnum;
                         $section = $data['sections'][$sectionnumber] ?? null;
                         $navigation .= '<h3>' . $this->e($section && $section->name !== null ? $section->name :
-                            ($sectionnumber ? 'セクション ' . $sectionnumber : 'はじめに')) . '</h3>';
+                            ($sectionnumber ? i18n::get('text_section_8510a9') . $sectionnumber : i18n::get('text_introduction_46a7f4'))) . '</h3>';
                         if ($section && $section->summary) {
                             $navigation .= $this->content($section->summary, (int)$section->summaryformat, $coursepath,
                                 \context_course::instance($id), 'course', 'section', (int)$section->id);
@@ -124,7 +124,7 @@ final class collector {
                         audit::add('render_failed', $this->request->id, ['cmid' => $cmid,
                             'exception' => get_class($e), 'message' => substr($e->getMessage(), 0, 500)], 0);
                         $this->omit('render_error', $cm->name . ': ' . get_class($e));
-                        $body = '<div class="notice">この活動の出力中に問題が発生しました。保存内容の一覧をご確認ください。</div>';
+                        $body = i18n::get('text_this_activity_could_not_be_7cf6c8');
                     }
                     $this->documents[$model['path']] = ['title' => $cm->name, 'body' => $body,
                         'eyebrow' => $cm->modname, 'courseid' => $id, 'cmid' => $cmid];
@@ -134,12 +134,12 @@ final class collector {
                 }
                 $this->cmid = 0;
                 $gradepath = 'courses/c' . $id . '/grades.html';
-                $this->documents[$gradepath] = ['title' => '成績の記録',
+                $this->documents[$gradepath] = ['title' => i18n::get('text_grades_and_feedback_ea1e88'),
                     'body' => $this->grades($data['course'], $gradepath), 'eyebrow' => $data['course']->fullname,
                     'courseid' => $id, 'cmid' => 0];
                 $this->documents[$coursepath] = ['title' => $data['course']->fullname,
-                    'body' => '<p class="lead">教材と学習成果を、授業の流れに沿って振り返れます。</p>' .
-                        '<p><a class="file-link" href="grades.html">成績の記録を見る →</a></p><div class="panel">' .
+                    'body' => i18n::get('text_revisit_your_materials_and_learning_a3d0fa') .
+                        i18n::get('text_view_grades_and_feedback_b5b787') .
                         $navigation . '</div>', 'eyebrow' => 'COURSE ARCHIVE', 'courseid' => $id, 'cmid' => 0];
             }
             $changed = $this->remove_deleted_models();
@@ -201,7 +201,7 @@ final class collector {
             if ($e->getCode() === 1002) {
                 throw $e;
             }
-            $this->omit('render_error', 'File: ' . $file->get_filename() . ' (' . get_class($e) . ')');
+            $this->omit('render_error', i18n::get('filedetail') . $file->get_filename() . ' (' . get_class($e) . ')');
             return null;
         }
     }
@@ -269,11 +269,11 @@ final class collector {
                 return $target ? paths::relative($from, $target) : null;
             }
             if (!$internal && in_array($parts['scheme'] ?? '', ['http', 'https'], true)) {
-                $this->omit('external_resource', 'External URL: ' . $parts['host']);
+                $this->omit('external_resource', i18n::get('externalurl') . $parts['host']);
             }
             return null;
         }, function(string $reason) {
-            $this->omit($reason, 'Embedded content cannot be preserved as static HTML');
+            $this->omit($reason, i18n::get('embedunavailable'));
         });
     }
 
@@ -309,7 +309,7 @@ final class collector {
                 break;
             default:
                 $this->omit('unsupported_module', $cm->name . ' (' . $cm->modname . ')');
-                $body .= '<div class="notice">この活動は現在の版では出力に対応していません。説明のみを保存しています。</div>';
+                $body .= i18n::get('text_this_activity_is_not_supported_97729d');
         }
         return $body . '</div>';
     }
@@ -317,14 +317,14 @@ final class collector {
     private function author(int $userid): string {
         personal_data::record($this->request, $userid, 'identity', ['type' => 'represented_person']);
         if ($userid === (int)$this->request->subjectid) {
-            return 'あなた';
+            return i18n::get('text_you_91cb52');
         }
         if ($this->request->policy === 'full') {
             return fullname(\core_user::get_user($userid));
         }
         // A stable mapping inside one archive; no user IDs or mapping table in the export.
         if (!isset($this->aliases[$userid])) {
-            $this->aliases[$userid] = '参加者 ' . str_pad((string)(count($this->aliases) + 1), 3, '0', STR_PAD_LEFT);
+            $this->aliases[$userid] = i18n::get('text_participant_011ead') . str_pad((string)(count($this->aliases) + 1), 3, '0', STR_PAD_LEFT);
         }
         return $this->aliases[$userid];
     }
@@ -335,7 +335,7 @@ final class collector {
         $forum = $model['instance'];
         $cm = $model['cm'];
         $path = $model['path'];
-        $body = '<h2>対話の記録</h2><p class="meta">収集時点で閲覧できる投稿を保存しています。他の投稿者は仮名で表示します。</p>';
+        $body = i18n::get($this->request->policy === 'full' ? 'forumnamed' : 'text_conversations_these_posts_were_visible_ad3d39');
         $discussions = $DB->get_records('forum_discussions', ['forum' => $forum->id], 'id ASC');
         $visible = 0;
         foreach ($discussions as $discussion) {
@@ -363,7 +363,7 @@ final class collector {
                 $body .= '<h3>' . $this->e($discussion->name) . '</h3>' . $thread;
             }
         }
-        return $body . (!$visible ? '<p>保存対象となる投稿はありません。</p>' : '');
+        return $body . (!$visible ? i18n::get('text_there_are_no_posts_to_91ec9e') : '');
     }
 
     private function quiz(object $course, array $model, \context_module $context, ?int $foruser = null): string {
@@ -371,7 +371,7 @@ final class collector {
         require_once($CFG->dirroot . '/mod/quiz/locallib.php');
         if ($this->request->kind === 'teacher' && $foruser === null) {
             if (!has_capability('mod/quiz:viewreports', $context)) {
-                $this->omit('policy_excluded', '小テストレポートを閲覧する権限がありません');
+                $this->omit('policy_excluded', i18n::get('text_quiz_report_access_is_not_ef63ad'));
                 return '';
             }
             $body = '';
@@ -383,7 +383,7 @@ final class collector {
         }
         $attempts = $DB->get_records('quiz_attempts', ['quiz' => $model['instance']->id,
             'userid' => $foruser ?? $this->request->subjectid, 'preview' => 0], 'attempt ASC');
-        $body = '<h2>受験の記録</h2><p class="meta">受験時に出題された問題と保存済み回答を、現在のレビュー権限に従って表示します。</p>';
+        $body = i18n::get('text_quiz_attempts_the_questions_and_93046c');
         $previouspage = $PAGE;
         try {
             $PAGE = new \moodle_page();
@@ -393,7 +393,7 @@ final class collector {
             $renderer = $PAGE->get_renderer('mod_quiz');
             foreach ($attempts as $attempt) {
                 if ($attempt->state !== \mod_quiz\quiz_attempt::FINISHED) {
-                    $this->omit('unfinished_attempt', '未完了の受験は問題・回答の出力対象外です（受験 ' . $attempt->attempt . '）');
+                    $this->omit('unfinished_attempt', i18n::get('text_an_unfinished_attempt_was_excluded_75fdbd') . $attempt->attempt . i18n::get('text_fragment_fa354c'));
                     continue;
                 }
                 $object = \mod_quiz\quiz_attempt::create($attempt->id);
@@ -401,7 +401,7 @@ final class collector {
                 $object->check_review_capability();
                 $options = $object->get_display_options(true);
                 if (!$options->attempt || ($foruser === null ? !$object->is_own_attempt() : !$object->is_review_allowed())) {
-                    $this->omit('review_restricted', 'レビューが公開されていない受験 ' . $attempt->attempt);
+                    $this->omit('review_restricted', i18n::get('text_review_is_not_available_for_0b7f01') . $attempt->attempt);
                     continue;
                 }
                 // History/edit links can contain identities and online-only controls.
@@ -410,20 +410,20 @@ final class collector {
                 $options->questionreviewlink = null;
                 $options->manualcommentlink = null;
                 $options->readonly = true;
-                $body .= '<h3>受験 ' . (int)$attempt->attempt . '</h3><p class="meta">完了：' .
+                $body .= i18n::get('text_attempt_eb4bf5') . (int)$attempt->attempt . i18n::get('text_completed_3106fe') .
                     $this->e(userdate($attempt->timefinish)) . '</p>';
                 foreach ($object->get_slots() as $slot) {
                     $question = $object->get_question_attempt($slot)->get_question();
                     $type = $question->qtype->name();
                     if (!in_array($type, ['multichoice', 'truefalse', 'shortanswer', 'numerical', 'match', 'description'], true)) {
-                        $this->omit('unsupported_question_type', '問題形式 ' . $type . ' は、このアルファ版では保存できません');
-                        $body .= '<p class="notice">この問題形式は保存対象外です。保存内容の注記をご確認ください。</p>';
+                        $this->omit('unsupported_question_type', i18n::get('text_question_type_310def') . $type . i18n::get('text_is_not_supported_by_this_3b4899'));
+                        $body .= i18n::get('text_this_question_type_was_excluded_699392');
                         continue;
                     }
                     try {
                         $fragment = $object->render_question($slot, true, $renderer);
                     } catch (\Throwable $e) {
-                        $this->omit('render_error', '小テスト問題 ' . $slot . ' (' . $type . ') を出力できません');
+                        $this->omit('render_error', i18n::get('text_quiz_question_2c2dc7') . $slot . ' (' . $type . i18n::get('text_could_not_be_rendered_b5476b'));
                         audit::add('question_render_failed', $this->request->id, ['cmid' => $model['cm']->id,
                             'exception' => get_class($e)], 0);
                         continue;
@@ -453,7 +453,7 @@ final class collector {
                             $file = get_file_storage()->get_file((int)$ctx, $component, $area, $itemid, $filepath, $filename);
                             return $file ? $this->file_path($file, $model['path']) : null;
                         }, function(string $reason) {
-                            $this->omit($reason, '小テスト内に静的保存できない埋め込みがあります');
+                            $this->omit($reason, i18n::get('text_a_quiz_embed_could_not_c74db6'));
                         });
                     $body .= '<section class="panel quiz-question">' . $rendered . '</section>';
                     if ($options->manualcomment == \question_display_options::VISIBLE) {
@@ -476,7 +476,7 @@ final class collector {
         }
         personal_data::fragment($this->request, $foruser ?? (int)$this->request->subjectid,
             'quiz:' . $model['cm']->id, $model['path'], $body);
-        return $body . (!$attempts ? '<p>保存対象となる受験はありません。</p>' : '');
+        return $body . (!$attempts ? i18n::get('text_there_are_no_attempts_to_04d48e') : '');
     }
 
     private function public_grade(object $course, string $module, int $instance, int $userid): ?object {
@@ -543,10 +543,10 @@ final class collector {
         $assignment = new \assign($context, $cm, $course);
         if ($this->request->kind === 'teacher' && $foruser === null) {
             if (!has_capability('mod/assign:grade', $context)) {
-                $this->omit('policy_excluded', '課題の採点権限がないため学生の提出は保存しません');
+                $this->omit('policy_excluded', i18n::get('text_student_submissions_were_excluded_because_7adaf3'));
                 return '';
             }
-            $body = '<p class="notice">担当者の採点権限で閲覧できる提出・評価・講評を保存しています。学生への公開前の内容を含む場合があります。</p>';
+            $body = i18n::get('text_submissions_grades_and_feedback_are_9ba207');
             foreach ($this->participants($course, $cm, 'mod/assign:submit') as $user) {
                 $body .= '<h2>' . $this->e($this->author((int)$user->id)) . '</h2>' .
                     $this->assignment($course, $model, $context, (int)$user->id);
@@ -555,7 +555,7 @@ final class collector {
         }
         $userid = $foruser ?? (int)$this->request->subjectid;
         if (!$assignment->can_view_submission($userid)) {
-            $this->omit('policy_excluded', 'Assignment submission is not visible');
+            $this->omit('policy_excluded', i18n::get('submissionnotvisible'));
             return '';
         }
         if ($model['instance']->teamsubmission) {
@@ -565,10 +565,10 @@ final class collector {
             $submissions = $DB->get_records('assign_submission', ['assignment' => $cm->instance, 'userid' => $userid],
                 'attemptnumber ASC');
         }
-        $body = '<h2>提出した記録</h2>';
+        $body = i18n::get('text_your_submissions_b0e831');
         foreach ($submissions as $submission) {
             $this->sourcechecks[] = ['assign_submission', ['id' => $submission->id]];
-            $body .= '<section class="panel"><span class="tag">提出 ' . ((int)$submission->attemptnumber + 1) .
+            $body .= i18n::get('text_submission_cf57a0') . ((int)$submission->attemptnumber + 1) .
                 '</span><span class="meta">' . $this->e(userdate($submission->timemodified)) . '</span>';
             $text = $DB->get_record('assignsubmission_onlinetext', ['submission' => $submission->id]);
             if ($text) {
@@ -579,7 +579,7 @@ final class collector {
                 (int)$submission->id), $path) . '</section>';
         }
         if (!$submissions) {
-            $body .= '<p class="meta">保存対象となる提出はありません。</p>';
+            $body .= i18n::get('text_there_are_no_submissions_to_d9c593');
         }
         $public = $this->public_grade($course, 'assign', (int)$cm->instance, $userid);
         $released = !$model['instance']->markingworkflow ||
@@ -591,10 +591,10 @@ final class collector {
             $value = $teacherreview && $grade ?
                 html_entity_decode(strip_tags($assignment->display_grade($grade->grade, false, $userid)), ENT_QUOTES | ENT_HTML5, 'UTF-8') :
                 ($public ? grade_format_gradevalue($public->grade->finalgrade, $public->item) : '—');
-            $body .= '<h2>評価とフィードバック</h2><div class="feedback"><div class="grade">' .
+            $body .= i18n::get('text_grades_and_feedback_09a146') .
                 $this->e($value) . '</div>';
             if ($teacherreview && (!$public || !$released)) {
-                $body .= '<p class="notice">学生には未公開の評価・講評です。</p>';
+                $body .= i18n::get('text_these_grades_and_feedback_are_f07962');
             }
             if ($grade) {
                 $comment = $DB->get_record('assignfeedback_comments', ['grade' => $grade->id]);
@@ -616,10 +616,10 @@ final class collector {
         if ($this->request->kind === 'teacher' && $foruser === null) {
             $context = \context_course::instance($course->id);
             if (!has_capability('moodle/grade:viewall', $context)) {
-                $this->omit('policy_excluded', '成績レポートを閲覧する権限がありません');
-                return '<p>保存対象となる成績はありません。</p>';
+                $this->omit('policy_excluded', i18n::get('text_grade_report_access_is_not_942aef'));
+                return i18n::get('text_there_are_no_grades_to_b03025');
             }
-            $body = '<p class="notice">担当者の成績閲覧権限に従って保存します。非公開成績の閲覧権限がある場合は、学生への公開前の評価も含みます。</p>';
+            $body = i18n::get('text_grades_are_saved_according_to_76c865');
             $users = get_enrolled_users($context, 'moodle/grade:view', 0, 'u.*', 'u.id', 0, 0, true);
             foreach ($users as $user) {
                 if (has_capability('moodle/grade:viewall', $context, $user->id)) {
@@ -641,8 +641,8 @@ final class collector {
             has_capability('moodle/grade:viewall', $context);
         $canseehidden = $teacherreview && has_capability('moodle/grade:viewhidden', $context);
         if (!$teacherreview && (!$course->showgrades || !has_capability('moodle/grade:view', \context_course::instance($course->id), $userid))) {
-            $this->omit('policy_excluded', 'Gradebook is not visible');
-            return '<p>本人に公開されている成績はありません。</p>';
+            $this->omit('policy_excluded', i18n::get('gradebooknotvisible'));
+            return i18n::get('text_no_grades_have_been_published_932dd8');
         }
         $items = \grade_item::fetch_all(['courseid' => $course->id]) ?: [];
         $hasprivate = false;
@@ -652,16 +652,16 @@ final class collector {
                 $hasprivate = true;
             }
         }
-        $body = '<p class="lead">' . ($teacherreview ? '担当者の権限で閲覧できる評価を保存しています。' :
-            '収集時点で本人に公開されている評価を保存しています。') . '</p>' .
-            '<table><thead><tr><th>項目</th><th>評価</th><th>フィードバック</th></tr></thead><tbody>';
+        $body = '<p class="lead">' . ($teacherreview ? i18n::get('text_these_grades_are_visible_under_38ec44') :
+            i18n::get('text_these_grades_were_published_to_48b5c6')) . '</p>' .
+            i18n::get('text_item_grade_feedback_e9fef3');
         foreach ($items as $item) {
             $grade = \grade_grade::fetch(['itemid' => $item->id, 'userid' => $userid]);
             if (!$grade || (!$canseehidden && !$this->grade_visible($item, $grade, $userid))) {
                 continue;
             }
             if ($hasprivate && in_array($item->itemtype, ['course', 'category'], true)) {
-                $this->omit('policy_excluded', 'Aggregate with hidden components was not exported');
+                $this->omit('policy_excluded', i18n::get('hiddenaggregate'));
                 continue;
             }
             if ($item->itemtype === 'mod') {
@@ -681,7 +681,7 @@ final class collector {
             personal_data::fragment($this->request, (int)$grade->usermodified,
                 'grade-feedback:' . $grade->id, $path, $feedback);
             $hidden = !$this->grade_visible($item, $grade, $userid);
-            $body .= '<tr><td>' . $this->e($item->get_name()) . ($hidden ? ' <span class="tag">学生には非公開</span>' : '') .
+            $body .= '<tr><td>' . $this->e($item->get_name()) . ($hidden ? i18n::get('text_hidden_from_students_22613f') : '') .
                 '</td><td class="grade">' .
                 $this->e(grade_format_gradevalue($grade->finalgrade, $item)) . '</td><td>' .
                 $feedback . '</td></tr>';
@@ -695,43 +695,43 @@ final class collector {
         global $DB, $CFG;
         $this->cmid = $this->courseid = 0;
         $activitycount = array_sum(array_map(fn($c) => count($c['models']), $this->courses));
-        $body = '<p class="lead">学んだこと、取り組んだこと、その先につながる記録。<br>あなたの学びを、この場所にまとめました。</p>' .
-            '<div class="stats"><div class="stat"><strong>' . count($this->courses) . '</strong><span>コース</span></div>' .
-            '<div class="stat"><strong>' . $activitycount . '</strong><span>教材・活動</span></div><div class="stat"><strong>' .
-            count($this->sourceids) . '</strong><span>参照したファイル</span></div></div><h2>学習の記録</h2><div class="cards">';
+        $body = i18n::get('text_what_you_learned_what_you_94c922') .
+            '<div class="stats"><div class="stat"><strong>' . count($this->courses) . i18n::get('text_courses_63decf') .
+            '<div class="stat"><strong>' . $activitycount . i18n::get('text_materials_and_activities_a22826') .
+            count($this->sourceids) . i18n::get('text_referenced_files_your_learning_records_272623');
         foreach ($this->courses as $id => $data) {
             $body .= '<section class="card"><span class="tag">COURSE</span><span class="meta">' .
-                count($data['models']) . ' 件の教材・活動</span><h2><a href="courses/c' . $id . '/index.html">' .
+                count($data['models']) . i18n::get('text_materials_and_activities_a_href_7e5ca9') . $id . '/index.html">' .
                 $this->e($data['course']->fullname) . '</a></h2><p class="meta">' . $this->e($data['course']->shortname) .
-                '</p><a class="arrow" href="courses/c' . $id . '/index.html">記録をひらく →</a></section>';
+                '</p><a class="arrow" href="courses/c' . $id . i18n::get('text_index_html_open_course_records_92a8d0');
         }
-        $this->documents['index.html'] = ['title' => '学びを、これからへ。', 'body' => $body . '</div>' .
-            '<div class="notice">保存対象・未対応の活動は「保存内容について」で確認できます。元のサイトに接続せず閲覧できます。</div>',
+        $this->documents['index.html'] = ['title' => i18n::get('text_your_learning_carried_forward_b811a3'), 'body' => $body . '</div>' .
+            i18n::get('text_see_about_this_archive_for_cb282b'),
             'eyebrow' => 'MY LEARNING ARCHIVE', 'courseid' => 0, 'cmid' => 0];
         $omissions = $DB->get_records('local_tomb_omission', ['requestid' => $this->request->id], 'id ASC');
-        $body = '<p class="lead">' . count($omissions) . ' 件の注記があります。確認できた削除済み資料は対象から除外しています。</p>' .
-            '<table><tr><th>区分</th><th>内容</th></tr>';
+        $body = '<p class="lead">' . count($omissions) . i18n::get('text_archive_notes_confirmed_deletions_were_7bde58') .
+            i18n::get('text_category_details_3a2856');
         foreach ($omissions as $omission) {
-            $body .= '<tr><td>' . $this->e($omission->reason) . '</td><td>' . $this->e($omission->detail) . '</td></tr>';
+            $body .= '<tr><td>' . $this->e(get_string_manager()->string_exists('reason_' . $omission->reason, 'local_tomb') ? i18n::get('reason_' . $omission->reason) : $omission->reason) . '</td><td>' . $this->e($omission->detail) . '</td></tr>';
         }
-        $this->documents['omissions.html'] = ['title' => '保存内容について', 'body' => $body . '</table>' .
-            '<p>投稿者の仮名化は、本文や添付ファイルの中まで完全に匿名化するものではありません。</p>',
+        $this->documents['omissions.html'] = ['title' => i18n::get('text_about_this_archive_e485da'), 'body' => $body . '</table>' .
+            i18n::get('text_pseudonyms_in_author_fields_do_20e37c'),
             'eyebrow' => 'ARCHIVE NOTES', 'courseid' => 0, 'cmid' => 0];
         if ($this->request->revisionof) {
             $oldrows = $DB->get_records('local_tomb_entry', ['requestid' => $this->request->revisionof]);
             $old = array_map(fn($row) => $row->zippath, $oldrows);
             $current = array_keys($this->documents);
-            $diff = '<p class="notice">旧版も保管したうえで、新版と併せてご確認ください。</p><h2>新しいページ</h2><ul>';
+            $diff = i18n::get('text_keep_the_earlier_version_and_3b1643');
             foreach (array_diff($current, $old) as $path) {
                 $diff .= '<li>' . $this->e($path) . '</li>';
             }
-            $diff .= '</ul><h2>今回含まれないページ</h2><ul>';
+            $diff .= i18n::get('text_pages_not_included_this_time_c0573b');
             foreach ($old as $path) {
                 if (str_ends_with($path, '.html') && !in_array($path, $current, true) && $path !== 'revision-diff.html') {
                     $diff .= '<li>' . $this->e($path) . '</li>';
                 }
             }
-            $diff .= '</ul><h2>本文が変わったページ</h2><ul>';
+            $diff .= i18n::get('text_pages_with_changed_content_ef0a98');
             $unavailable = false;
             foreach ($oldrows as $row) {
                 if (!isset($this->documents[$row->zippath]) || $row->sourcetype !== 'inline') {
@@ -754,13 +754,13 @@ final class collector {
                     $unavailable = true;
                 }
             }
-            $diff .= '</ul><p class="meta">本文の比較では収集日時・生成日時のフッターを除外しています。</p>';
+            $diff .= i18n::get('text_content_comparison_excludes_the_collection_0da89b');
             if ($unavailable) {
-                $diff .= '<p class="notice">旧版の材料が利用できないため、一部の本文は比較できませんでした。</p>';
+                $diff .= i18n::get('text_some_content_could_not_be_15aefd');
             }
-            $this->documents['revision-diff.html'] = ['title' => '旧版からの変更', 'body' => $diff,
+            $this->documents['revision-diff.html'] = ['title' => i18n::get('text_changes_from_the_previous_version_4acf68'), 'body' => $diff,
                 'eyebrow' => 'REVISION', 'courseid' => 0, 'cmid' => 0];
-            $this->documents['index.html']['body'] .= '<p><a href="revision-diff.html">旧版からの変更を見る</a></p>';
+            $this->documents['index.html']['body'] .= i18n::get('text_view_changes_from_the_previous_93f5d3');
         }
         $expectedpages = 2 + 2 * count($this->courses) + $activitycount + ($this->request->revisionof ? 1 : 0);
         if (count($this->documents) !== $expectedpages) {
@@ -802,6 +802,7 @@ final class collector {
             'requested_at' => gmdate('c', $this->request->timecreated),
             'collection_started' => gmdate('c', $this->request->timestarted),
             'collection_finished' => gmdate('c', $this->request->timecollected),
+            'output_language' => $this->request->outputlang ?? 'ja',
             'generated' => gmdate('c', $this->request->timefinished), 'policy' => $this->request->policy,
             'courses' => array_keys($this->courses), 'expected' => json_decode($this->request->expected, true),
             'omissions' => array_map(fn($o) => ['courseid' => (int)$o->courseid, 'cmid' => (int)$o->cmid,
@@ -811,9 +812,9 @@ final class collector {
             'integrity' => ['sha256' => $digests, 'note' => 'Shared files are verified by ZIP CRC32; manifest and README are excluded from this list.']];
         $this->storage->add_text('manifest.json', json_encode($manifest,
             JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
-        $this->storage->add_text('README.txt', "Tomb — 学習記録\n\nZIPをすべて展開し、index.html をブラウザで開いてください。\n" .
-            "ネット接続やMoodleへのログインは不要です。\n保存範囲や未対応項目は omissions.html をご確認ください。\n" .
-            "収集期間中に取得した内容です。同じ版の再ダウンロードでは内容は変わりません。\n" .
-            "元のZIPと以前の版も大切に保管してください。\n");
+        $this->storage->add_text('README.txt', i18n::get('text_tomb_learning_archive_fully_extract_b6ddff') .
+            i18n::get('text_no_network_connection_or_moodle_99aa5d') .
+            i18n::get('text_the_content_was_obtained_during_80363d') .
+            i18n::get('text_keep_the_original_zip_and_3d2d7f'));
     }
 }
