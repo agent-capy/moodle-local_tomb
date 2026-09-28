@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/tomb/db" VERSION="20260920" COMMENT="Tomb learning record archives">
+<XMLDB PATH="local/tomb/db" VERSION="20260928" COMMENT="Tomb learning record archives">
   <TABLES>
     <TABLE NAME="local_tomb_request" COMMENT="Tomb request">
       <FIELDS>
@@ -150,6 +150,21 @@
       <INDEXES>
         <INDEX NAME="requestuserkey" UNIQUE="true" FIELDS="requestid, userid, itemkey" />
         <INDEX NAME="userid" UNIQUE="false" FIELDS="userid" />
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_tomb_diagnostic" COMMENT="Bounded export failure diagnostics; never distributed in learning ZIPs">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+        <FIELD NAME="requestid" TYPE="int" LENGTH="10" NOTNULL="true" />
+        <FIELD NAME="severity" TYPE="char" LENGTH="10" NOTNULL="true" />
+        <FIELD NAME="phase" TYPE="char" LENGTH="32" NOTNULL="true" />
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" />
+        <FIELD NAME="details" TYPE="text" NOTNULL="true" />
+      </FIELDS>
+      <KEYS><KEY NAME="primary" TYPE="primary" FIELDS="id" /></KEYS>
+      <INDEXES>
+        <INDEX NAME="requestseverity" UNIQUE="false" FIELDS="requestid, severity" />
+        <INDEX NAME="timecreated" UNIQUE="false" FIELDS="timecreated" />
       </INDEXES>
     </TABLE>
   </TABLES>

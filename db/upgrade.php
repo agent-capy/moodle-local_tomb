@@ -35,5 +35,13 @@ function xmldb_local_tomb_upgrade(int $oldversion): bool {
         if (!$manager->index_exists($table, $index)) {$manager->add_index($table, $index);}
         upgrade_plugin_savepoint(true, 2026092002, 'local', 'tomb');
     }
+    if ($oldversion < 2026092801) {
+        global $DB;
+        $definition = new xmldb_file(__DIR__ . '/install.xml');
+        $definition->loadXMLStructure();
+        $table = $definition->getStructure()->getTable('local_tomb_diagnostic');
+        if (!$DB->get_manager()->table_exists($table)) {$DB->get_manager()->create_table($table);}
+        upgrade_plugin_savepoint(true, 2026092801, 'local', 'tomb');
+    }
     return true;
 }

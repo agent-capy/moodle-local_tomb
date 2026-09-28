@@ -20,6 +20,7 @@ final class provider implements \core_privacy\local\metadata\provider,
             'local_tomb_omission' => ['requestid', 'courseid', 'cmid', 'reason', 'detail'],
             'local_tomb_cache' => ['requestid', 'status', 'path', 'sha256', 'bytes', 'expires'],
             'local_tomb_blob' => ['contenthash', 'size', 'crc'],
+            'local_tomb_diagnostic' => ['requestid', 'severity', 'phase', 'timecreated', 'details'],
             'local_tomb_audit' => ['requestid', 'actorid', 'event', 'details', 'timecreated'],
         ] as $table => $fields) {
             $collection->add_database_table($table, array_fill_keys($fields, 'privacy:metadata:details'),
@@ -93,6 +94,9 @@ final class provider implements \core_privacy\local\metadata\provider,
                 } else {
                     $data['delegated_request'] = true;
                 }
+                // Technical traces are administrator-only; privacy export includes the subject's diagnostic metadata.
+                $data['diagnostic_events'] = array_values($DB->get_records('local_tomb_diagnostic',
+                    ['requestid' => $request->id], 'id', 'id,severity,phase,timecreated'));
                 $writer->export_data($path, (object)$data);
             }
             foreach ($DB->get_records('local_tomb_person', ['userid' => $userid], 'id') as $person) {

@@ -34,12 +34,14 @@ final class collector {
         require_once($CFG->libdir . '/gradelib.php');
         require_once($CFG->dirroot . '/mod/assign/locallib.php');
         manager::progress($this->request->id, 'collecting');
+        diagnostics::checkpoint('collecting');
         $available = manager::courses((int)$this->request->subjectid, $this->request->kind);
         foreach (json_decode($this->request->courses, true, 512, JSON_THROW_ON_ERROR) as $courseid) {
             if (!$DB->record_exists('course', ['id' => $courseid])) {
                 continue;
             }
             $this->courseid = (int)$courseid;
+            diagnostics::checkpoint('collecting', (int)$courseid);
             if (!isset($available[$courseid])) {
                 $this->excludedcourses[] = $courseid;
                 continue;
@@ -103,6 +105,7 @@ final class collector {
                 $sectionnumber = null;
                 foreach ($data['models'] as $cmid => $model) {
                     $this->cmid = (int)$cmid;
+                    diagnostics::checkpoint('activity', (int)$id, (int)$cmid);
                     $cm = $model['cm'];
                     if ($sectionnumber !== $cm->sectionnum) {
                         $sectionnumber = $cm->sectionnum;
@@ -121,8 +124,9 @@ final class collector {
                         if ($e->getCode() === 1002) {
                             throw $e;
                         }
+                        diagnostics::failure((int)$this->request->id, 'activity', $e, true);
                         audit::add('render_failed', $this->request->id, ['cmid' => $cmid,
-                            'exception' => get_class($e), 'message' => substr($e->getMessage(), 0, 500)], 0);
+                            'exception' => get_class($e), 'message' => mb_strcut(diagnostics::clean($e->getMessage()), 0, 500, 'UTF-8')], 0);
                         $this->omit('render_error', $cm->name . ': ' . get_class($e));
                         $body = i18n::get('text_this_activity_could_not_be_7cf6c8');
                     }
@@ -133,6 +137,7 @@ final class collector {
                         $this->e($cm->name) . '</a><br><small>' . $this->e($data['course']->shortname) . '</small></div></div>';
                 }
                 $this->cmid = 0;
+                diagnostics::checkpoint('grades', (int)$id);
                 $gradepath = 'courses/c' . $id . '/grades.html';
                 $this->documents[$gradepath] = ['title' => i18n::get('text_grades_and_feedback_ea1e88'),
                     'body' => $this->grades($data['course'], $gradepath), 'eyebrow' => $data['course']->fullname,
@@ -158,6 +163,7 @@ final class collector {
             }
             $this->request->timecollected = time();
             $this->request->timefinished = time();
+            diagnostics::checkpoint('finalising');
             $this->finish();
             return;
         }
@@ -201,6 +207,7 @@ final class collector {
             if ($e->getCode() === 1002) {
                 throw $e;
             }
+            diagnostics::failure((int)$this->request->id, 'file', $e, true);
             $this->omit('render_error', i18n::get('filedetail') . $file->get_filename() . ' (' . get_class($e) . ')');
             return null;
         }
@@ -423,6 +430,7 @@ final class collector {
                     try {
                         $fragment = $object->render_question($slot, true, $renderer);
                     } catch (\Throwable $e) {
+                        diagnostics::failure((int)$this->request->id, 'question', $e, true);
                         $this->omit('render_error', i18n::get('text_quiz_question_2c2dc7') . $slot . ' (' . $type . i18n::get('text_could_not_be_rendered_b5476b'));
                         audit::add('question_render_failed', $this->request->id, ['cmid' => $model['cm']->id,
                             'exception' => get_class($e)], 0);
@@ -794,6 +802,7 @@ final class collector {
             throw new \RuntimeException('Expected page count does not match stored entries');
         }
         $entries = $DB->get_records('local_tomb_entry', ['requestid' => $this->request->id], 'id ASC');
+        diagnostics::checkpoint('link_validation');
         html::check_links($rendered, array_map(fn($entry) => $entry->zippath, $entries));
         $this->request->actual = json_encode(['pages' => $pages, 'entries' => count($entries) + 2,
             'validated_links' => true], JSON_THROW_ON_ERROR);

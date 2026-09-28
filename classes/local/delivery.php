@@ -138,6 +138,7 @@ final class delivery {
         $part = null;
         $finished = null;
         try {
+            diagnostics::begin($id, 'assembly');
             // Privacy erasure may have retired the version before the worker lock was acquired.
             $request = $DB->get_record('local_tomb_request', ['id' => $id]);
             if (!$request || $request->status !== 'ready' || $request->timepurged || !config::allowed($request->subjectid)) {
@@ -195,6 +196,7 @@ final class delivery {
             audit::add('zip_ready', $id, ['sha256' => $sha, 'bytes' => $request->totalbytes], 0);
             manager::notify($request, 'ready');
         } catch (\Throwable $e) {
+            diagnostics::failure($id, 'assembly', $e);
             if ($part && is_file($part)) {
                 unlink($part);
             }
@@ -206,7 +208,7 @@ final class delivery {
                 $cache->bytes = 0;
                 $cache->path = '';
                 $cache->updated = time();
-                $cache->lasterror = get_class($e) . ': ' . substr($e->getMessage(), 0, 1000);
+                $cache->lasterror = get_class($e) . ': ' . mb_strcut(diagnostics::clean($e->getMessage()), 0, 1000, 'UTF-8');
                 $DB->update_record('local_tomb_cache', $cache);
             }
             if ($e->getCode() === 1001) {
@@ -216,6 +218,7 @@ final class delivery {
             audit::add('assembly_failed', $id, ['exception' => get_class($e), 'material' => $e->getCode() === 1001], 0);
             manager::notify($request, 'failed');
         } finally {
+            diagnostics::end();
             $lock->release();
             $worker->release();
         }
@@ -243,6 +246,7 @@ final class delivery {
                 $DB->delete_records('local_tomb_cache', ['id' => $cache->id]);
             }
             storage::clear($request, false);
+            $DB->delete_records('local_tomb_diagnostic', ['requestid' => $request->id]);
             $DB->set_field('local_tomb_request', 'timepurged', time(), ['id' => $request->id]);
             audit::add('materials_purged', $request->id);
         } finally {
@@ -253,12 +257,14 @@ final class delivery {
 
     public static function cleanup(): void {
         global $DB;
+        diagnostics::cleanup();
         // A dead worker cannot hold this lock. Do not infer failure from time alone.
         $worker = config::lock('worker');
         if ($worker) {
             try {
                 foreach ($DB->get_records_select('local_tomb_request', 'status = ? AND heartbeat < ?',
                         ['running', time() - 600]) as $request) {
+                    diagnostics::interrupted((int)$request->id, 'collection');
                     $DB->update_record('local_tomb_request', (object)['id' => $request->id, 'status' => 'failed',
                         'stage' => 'failed', 'lasterror' => 'Worker interrupted; request a new version']);
                     audit::add('worker_interrupted', $request->id, [], 0);
@@ -271,6 +277,7 @@ final class delivery {
                         continue;
                     }
                     try {
+                        diagnostics::interrupted((int)$cache->requestid, 'assembly');
                         self::remove_file($cache);
                         $cache->status = 'queued';
                         $cache->bytes = 0;

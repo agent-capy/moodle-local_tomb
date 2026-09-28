@@ -140,6 +140,7 @@ final class personal_data {
                         'actual' => '', 'reason' => '', 'message' => '', 'lasterror' => 'privacy_erasure', 'wantdownload' => 0]);
                 }
             }
+            if ($affected) {$DB->delete_records_list('local_tomb_diagnostic', 'requestid', $affected);}
             $DB->set_field('local_tomb_request', 'requesterid', 0, ['requesterid' => $userid]);
             foreach ($delegated as $request) {
                 $DB->set_field('local_tomb_request', 'reason', '', ['id' => $request->id]);

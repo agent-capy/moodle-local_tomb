@@ -188,6 +188,7 @@ final class manager {
         $started = microtime(true);
         $memorybefore = memory_get_usage(true);
         try {
+            diagnostics::begin($id, 'collection');
             $request = $DB->get_record('local_tomb_request', ['id' => $id]);
             if (!$request || $request->status !== 'queued' || !config::allowed($request->subjectid, true)) {
                 return;
@@ -202,10 +203,12 @@ final class manager {
             $request->heartbeat = time();
             $DB->update_record('local_tomb_request', $request);
             audit::add('collecting', $id, [], 0);
+            diagnostics::checkpoint('inventory');
             $budget = estimate::inventory((int)$request->subjectid, json_decode($request->courses, true), $request->kind);
             if (!$budget['capacity_available_for_budget']) {throw new \moodle_exception('capacity', 'local_tomb');}
             $collector = new collector($request);
             $collector->generate();
+            diagnostics::checkpoint('planning');
             $plan = storage::plan($request);
             foreach ($plan['entries'] as $entry) {
                 $DB->set_field('local_tomb_entry', 'zipoffset', $entry['offset'], ['id' => $entry['id']]);
@@ -220,6 +223,7 @@ final class manager {
             $DB->update_record('local_tomb_request', $request);
             estimate::measured($id, 'collection', $started, $memorybefore);
             audit::add('generated', $id, ['bytes' => $request->totalbytes], 0);
+            diagnostics::checkpoint('preparation');
             if ($DB->get_field('local_tomb_request', 'wantdownload', ['id' => $request->id])) {
                 // The owner's creation form explicitly requests both collection and ZIP preparation.
                 delivery::request($request);
@@ -228,13 +232,15 @@ final class manager {
             }
         } catch (\Throwable $e) {
             $completed = $DB->get_field('local_tomb_request', 'status', ['id' => $id]) === 'ready';
+            diagnostics::failure($id, $completed ? 'preparation' : 'collection', $e);
             $DB->update_record('local_tomb_request', (object)['id' => $id, 'status' => $completed ? 'ready' : 'failed',
                 'stage' => $completed ? 'ready' : 'failed',
-                'heartbeat' => time(), 'lasterror' => get_class($e) . ': ' . substr($e->getMessage(), 0, 1000)]);
+                'heartbeat' => time(), 'lasterror' => get_class($e) . ': ' . mb_strcut(diagnostics::clean($e->getMessage()), 0, 1000, 'UTF-8')]);
             audit::add($completed ? 'preparation_failed' : 'generation_failed', $id, ['exception' => get_class($e)], 0);
             self::notify($request, 'failed');
             mtrace('Tomb request ' . $id . ($completed ? ' ZIP preparation failed: ' : ' collection failed: ') . get_class($e));
         } finally {
+            diagnostics::end();
             \core\session\manager::set_user($olduser);
             if ($oldlanguage !== null) {force_current_language($oldlanguage);}
             $worker->release();
@@ -286,7 +292,7 @@ final class manager {
                 $adminnotice->subject = i18n::get('notification_failed', null, $admin->lang ?: $CFG->lang);
                 $adminnotice->smallmessage = $adminnotice->subject;
                 $adminnotice->fullmessage = i18n::get('adminnotificationbody', $request->id, $admin->lang ?: $CFG->lang);
-                $adminnotice->contexturl = (new \moodle_url('/local/tomb/manage.php'))->out(false);
+                $adminnotice->contexturl = (new \moodle_url('/local/tomb/diagnostics.php', ['id' => $request->id]))->out(false);
                 $adminnotice->contexturlname = i18n::get('manage', null, $admin->lang ?: $CFG->lang);
                 try {
                     if (message_send($adminnotice)) {

@@ -330,3 +330,27 @@ $string['metriczip'] = 'ZIPサイズ';
 $string['metricscopyhelp'] = '原本はFile APIで参照します。表示値は人数分を新たに複製したディスク量ではありません。';
 $string['forumnamed'] = '<h2>対話の記録</h2><p class="meta">収集時点で閲覧できる投稿を保存しています。記録した理由と実名出力権限に基づき、投稿者名を表示します。</p>';
 $string['requestfailed'] = '操作を完了できませんでした。繰り返す場合は管理者へお知らせください。';
+
+// Administrator export diagnostics.
+$string['diagnostics'] = 'エラー・注記の診断';
+$string['diagnostics_help'] = 'エラーの詳細はTombの管理権限を持つ利用者だけが確認できます。通常cronで30日を過ぎた診断ログを削除します。各版の警告は最初の25件、失敗は直近25件を保持します。JSONを第三者へ渡す前に内容を確認してください。';
+$string['diagnostics_download'] = '診断情報をJSONで取得';
+$string['diagnostics_state'] = '収集状態: {$a->status} / 段階: {$a->stage} / ZIP状態: {$a->cache}';
+$string['diagnostics_legacy_collection_error'] = '収集・準備の最終エラー';
+$string['diagnostics_legacy_assembly_error'] = 'ZIP組立の最終エラー';
+$string['diagnostics_errors'] = '処理中に記録したエラー';
+$string['diagnostics_empty'] = '診断ログはありません。機能追加前のエラー、保存期間を過ぎたログ、記録できなかった強制終了は詳細が残らない場合があります。';
+$string['diagnostics_interrupted'] = '処理が中断しました。原因は特定できません。PHP・cron・サーバのログも確認してください。';
+$string['diagnostics_warning'] = '一部の保存に失敗';
+$string['diagnostics_error'] = '処理の失敗・中断';
+$string['diagnostics_context'] = '段階: {$a->stage} / コースID: {$a->courseid} / 活動ID: {$a->cmid}';
+$string['diagnostics_runtime'] = '経過: {$a->seconds}秒 / メモリ: {$a->memory} / プロセスピーク: {$a->peak} / メモリ上限: {$a->limit} / PHP実行時間上限: {$a->time}秒（0は無制限）';
+$string['diagnostics_details'] = '例外・呼出し経路・処理件数の詳細';
+$string['diagnostics_notes'] = '保存内容の注記: {$a}件';
+$string['diagnostics_notes_help'] = '注記の件数はコンテンツ数や処理上限ではありません。未対応の形式、公開・権限による除外、描画エラーなどの内訳を確認してください。表の活動IDはコースモジュールIDです。';
+$string['diagnostics_reason'] = '理由';
+$string['diagnostics_count'] = '件数';
+$string['diagnostics_course'] = 'コースID';
+$string['diagnostics_activity'] = '活動ID';
+$string['diagnostics_truncated'] = '活動別の内訳は最初の100組まで表示しています。理由別の合計は全件を含みます。';
+$string['privacy:metadata:local_tomb_diagnostic'] = '出力の障害調査用ログ。版、処理段階、例外、資源使用量、注記件数を記録します。';

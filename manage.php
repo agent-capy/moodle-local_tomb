@@ -112,6 +112,8 @@ foreach ($requests as $request) {
             '<input type="hidden" name="id" value="' . $request->id . '"><label><input type="checkbox" name="confirm" value="1" required> ' .
             i18n::get('text_i_understand_that_this_version_2ea840');
     }
+    echo '<p>' . html_writer::link(new moodle_url('/local/tomb/diagnostics.php', ['id' => $request->id]),
+        i18n::get('diagnostics')) . '</p>';
     if (!empty($request->metrics)) {echo ui::measurements($request->metrics);}
     if ($request->lasterror) {
         echo i18n::get('text_error_details_a19207') . s($request->lasterror) . '</pre></details>';

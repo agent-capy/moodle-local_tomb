@@ -4,3 +4,5 @@
 .tomb-filters { display:flex; flex-wrap:wrap; align-items:end; gap:.75rem; margin:1rem 0; }
 .tomb-filters label { display:flex; flex-direction:column; gap:.25rem; max-width:100%; }
 .tomb-filters select { max-width:24rem; }
+
+.tomb-diagnostic-json { white-space: pre-wrap; overflow-wrap: anywhere; }

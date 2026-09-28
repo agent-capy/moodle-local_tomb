@@ -338,3 +338,27 @@ $string['metriczip'] = 'ZIP size';
 $string['metricscopyhelp'] = 'Source files are referenced through the File API. Their logical size is not additional disk usage copied for each person.';
 $string['forumnamed'] = '<h2>Conversations</h2><p class="meta">These posts were visible at collection time. Author names are included under the recorded reason and explicit named-export permission.</p>';
 $string['requestfailed'] = 'This operation could not be completed. Contact your administrator if the problem persists.';
+
+// Administrator export diagnostics.
+$string['diagnostics'] = 'Error and archive-note diagnostics';
+$string['diagnostics_help'] = 'Technical details are restricted to Tomb managers. Normal cron removes diagnostic logs older than 30 days. Each version retains the first 25 warning samples and the latest 25 failures. Review the JSON before sharing it.';
+$string['diagnostics_download'] = 'Download diagnostics as JSON';
+$string['diagnostics_state'] = 'Collection: {$a->status} / Stage: {$a->stage} / ZIP: {$a->cache}';
+$string['diagnostics_legacy_collection_error'] = 'Last collection/preparation error';
+$string['diagnostics_legacy_assembly_error'] = 'Last ZIP assembly error';
+$string['diagnostics_errors'] = 'Errors recorded during processing';
+$string['diagnostics_empty'] = 'No diagnostic logs are retained. Failures before this feature was installed, expired logs, or forced termination may have no details.';
+$string['diagnostics_interrupted'] = 'The worker was interrupted; the cause is unknown. Also inspect PHP, cron and server logs.';
+$string['diagnostics_warning'] = 'Partial export failure';
+$string['diagnostics_error'] = 'Failure or interruption';
+$string['diagnostics_context'] = 'Stage: {$a->stage} / Course ID: {$a->courseid} / Activity ID: {$a->cmid}';
+$string['diagnostics_runtime'] = 'Elapsed: {$a->seconds}s / Memory: {$a->memory} / Process peak: {$a->peak} / Memory limit: {$a->limit} / PHP time limit: {$a->time}s (0 means unlimited)';
+$string['diagnostics_details'] = 'Exception, call stack and processing counts';
+$string['diagnostics_notes'] = 'Archive notes: {$a}';
+$string['diagnostics_notes_help'] = 'The note count is neither a content count nor a processing limit. Check the breakdown for unsupported formats, access/review restrictions and rendering failures. Activity IDs are course-module IDs.';
+$string['diagnostics_reason'] = 'Reason';
+$string['diagnostics_count'] = 'Count';
+$string['diagnostics_course'] = 'Course ID';
+$string['diagnostics_activity'] = 'Activity ID';
+$string['diagnostics_truncated'] = 'Only the first 100 activity/reason groups are shown. Totals by reason include all notes.';
+$string['privacy:metadata:local_tomb_diagnostic'] = 'Export diagnostics recording version, phase, exceptions, resource use and note counts.';
