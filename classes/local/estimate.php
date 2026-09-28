@@ -15,7 +15,7 @@ final class estimate {
             'known_shared_source_bytes' => 0, 'unresolved_activities' => 0, 'zip_created' => false];
         $hashes = [];
         $weight = 2;
-        foreach (manager::courses($userid) as $course) {
+        foreach (manager::courses($userid, $kind) as $course) {
             if ($selected && !in_array((int)$course->id, $selected, true)) {continue;}
             $context = \context_course::instance($course->id);
             $factor = 1;

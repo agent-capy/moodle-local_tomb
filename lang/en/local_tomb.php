@@ -9,6 +9,7 @@ $string['tomb:manage'] = 'Manage Tomb';
 $string['tomb:viewaudit'] = 'Inspect and export the Tomb audit log';
 $string['cleanup'] = 'Clean delivery caches and resume queued Tomb requests';
 $string['unavailable'] = 'This archive operation is not currently available.';
+$string['teacherrehearsalrequired'] = 'To create a teaching archive in rehearsal mode, the teacher must also belong to the rehearsal cohort. Ask your administrator to add you.';
 $string['selectcourses'] = 'Select at least one eligible course.';
 $string['ratelimit'] = 'Please wait before requesting another archive.';
 $string['reasonrequired'] = 'A reason is required for a named teacher export.';

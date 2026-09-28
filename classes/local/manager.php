@@ -4,10 +4,19 @@ namespace local_tomb\local;
 defined('MOODLE_INTERNAL') || die();
 
 final class manager {
-    public static function courses(int $userid): array {
+    public static function courses(int $userid, string $kind = 'learner'): array {
+        $fields = 'fullname,shortname,visible,groupmode,groupmodeforce';
+        $enrolled = enrol_get_users_courses($userid, true, 'id,' . $fields);
+        // Teachers may have course access through a course/category role without an enrolment.
+        $courses = $kind === 'teacher' ?
+            (get_user_capability_course('local/tomb:exportteacher', $userid, true, $fields, 'fullname') ?: []) : $enrolled;
         $result = [];
-        foreach (enrol_get_users_courses($userid, true, 'id,fullname,shortname,visible,groupmode,groupmodeforce') as $course) {
+        foreach ($courses as $course) {
             $context = \context_course::instance($course->id);
+            if ($kind === 'teacher' && !isset($enrolled[$course->id]) &&
+                    !has_capability('moodle/course:view', $context, $userid)) {
+                continue;
+            }
             if ($course->id != SITEID && ($course->visible || has_capability('moodle/course:viewhiddencourses',
                     $context, $userid))) {
                 $result[$course->id] = $course;
@@ -41,7 +50,7 @@ final class manager {
         if (!$courseids) {
             throw new \moodle_exception('selectcourses', 'local_tomb');
         }
-        $available = self::courses($subjectid);
+        $available = self::courses($subjectid, $kind);
         foreach ($courseids as $id) {
             if (!isset($available[$id])) {
                 throw new \moodle_exception('invalidcourseid');

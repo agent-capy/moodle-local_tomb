@@ -34,7 +34,7 @@ final class collector {
         require_once($CFG->libdir . '/gradelib.php');
         require_once($CFG->dirroot . '/mod/assign/locallib.php');
         manager::progress($this->request->id, 'collecting');
-        $available = manager::courses((int)$this->request->subjectid);
+        $available = manager::courses((int)$this->request->subjectid, $this->request->kind);
         foreach (json_decode($this->request->courses, true, 512, JSON_THROW_ON_ERROR) as $courseid) {
             if (!$DB->record_exists('course', ['id' => $courseid])) {
                 continue;

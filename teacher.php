@@ -5,12 +5,7 @@ require_login();
 use local_tomb\local\{config, manager, ui, listing, i18n};
 
 ui::start(i18n::get('text_teaching_archives_d93d0c'), '/local/tomb/teacher.php');
-$courses = [];
-foreach (manager::courses((int)$USER->id) as $course) {
-    if (has_capability('local/tomb:exportteacher', context_course::instance($course->id))) {
-        $courses[$course->id] = $course;
-    }
-}
+$courses = manager::courses((int)$USER->id, 'teacher');
 $admin = has_capability('local/tomb:manage', context_system::instance());
 if ($admin) {
     foreach ($DB->get_records_select('course', 'id <> ?', [SITEID], 'fullname') as $course) {
@@ -43,6 +38,7 @@ if ($courses[$courseid]->groupmode == SEPARATEGROUPS && !has_capability('moodle/
 $notice = '';
 $batchresults = [];
 $cangenerate = in_array(config::mode(), ['rehearsal', 'active'], true);
+$canteachergenerate = config::allowed((int)$USER->id, true);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_sesskey();
     try {
@@ -89,6 +85,9 @@ if ($batchresults) {
 if (!$cangenerate) {
     echo i18n::get('text_new_collection_requests_are_closed_9cd0ff');
 }
+if ($cangenerate && !$canteachergenerate && config::mode() === 'rehearsal') {
+    echo $OUTPUT->notification(s(i18n::get('teacherrehearsalrequired')), 'warning');
+}
 echo i18n::get('text_course_14fbb3');
 foreach ($courses as $course) {
     echo '<option value="' . $course->id . '"' . ($course->id == $courseid ? ' selected' : '') . '>' . s($course->fullname) . '</option>';
@@ -104,7 +103,7 @@ if (has_capability('local/tomb:exportothersdata', $context)) {
 }
 echo i18n::get('text_reason_for_including_real_names_dbf044') .
     i18n::get('text_pseudonyms_replace_author_and_name_83d56b') .
-    '<button type="submit" class="tomb-button"' . (!$cangenerate ? ' disabled' : '') . i18n::get('text_create_and_receive_a_teaching_fa07a3');
+    '<button type="submit" class="tomb-button"' . (!$canteachergenerate ? ' disabled' : '') . i18n::get('text_create_and_receive_a_teaching_fa07a3');
 echo i18n::get('text_request_archives_for_students_students_5f5fab') .
     i18n::get('text_a_teacher_making_a_request_b59457');
 if ($cangenerate && has_capability('local/tomb:delegate', $context)) {

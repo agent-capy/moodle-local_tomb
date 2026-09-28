@@ -70,11 +70,9 @@ echo '<div class="tomb-wrap"><section class="tomb-hero"><div class="tomb-eyebrow
 if ($admin) {
     echo '<p><a href="' . (new moodle_url('/local/tomb/manage.php'))->out() . i18n::get('text_manage_archives_e67154');
 }
-foreach (manager::courses((int)$USER->id) as $course) {
-    if (has_capability('local/tomb:exportteacher', context_course::instance($course->id))) {
-        echo i18n::get('text_teaching_archives_and_student_requests_565411');
-        break;
-    }
+$teachingcourses = manager::courses((int)$USER->id, 'teacher');
+if ($teachingcourses) {
+    echo i18n::get('text_teaching_archives_and_student_requests_565411');
 }
 if ($request) {
     echo '<section class="tomb-box"><div class="tomb-eyebrow">YOUR ARCHIVE / #' . (int)$request->id . '</div>' .
@@ -155,7 +153,7 @@ if ($request) {
     $selection = new listing('own', $filters);
     $page = $selection->page(optional_param('page', 0, PARAM_INT));
     $listurl = new moodle_url('/local/tomb/index.php', $filters);
-    echo listing::form($filters, manager::courses((int)$USER->id)) . listing::navigation($page, $listurl);
+    echo listing::form($filters, manager::courses((int)$USER->id) + $teachingcourses) . listing::navigation($page, $listurl);
     $requests = $page['records'];
     foreach ($requests as $record) {
         $itemcache = $DB->get_record('local_tomb_cache', ['requestid' => $record->id]);

@@ -10,6 +10,7 @@ $string['tomb:manage'] = 'Tomb を管理する';
 $string['tomb:viewaudit'] = 'Tomb の監査記録を閲覧・出力する';
 $string['cleanup'] = '配送キャッシュの清掃と Tomb 待機処理の再開';
 $string['unavailable'] = '現在、この学習記録の操作は利用できません。';
+$string['teacherrehearsalrequired'] = '検証モードで教師版を作成するには、教師本人も検証対象のコホートに所属する必要があります。管理者に追加を依頼してください。';
 $string['selectcourses'] = '保存するコースを選択してください。';
 $string['ratelimit'] = '次の記録の作成まで、しばらくお待ちください。';
 $string['reasonrequired'] = '実名出力には理由の入力が必要です。';
